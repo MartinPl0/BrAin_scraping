@@ -1,0 +1,38 @@
+{
+  "_comment": "API Server Configuration",
+  "server": {
+    "port": 3000,
+    "host": "localhost"
+  },
+  "cors": {
+    "enabled": true,
+    "origin": "*"
+  },
+  "providers": {
+    "o2": {
+      "name": "O2 Slovakia",
+      "filePath": "storage/datasets/o2/o2.json"
+    },
+    "telekom": {
+      "name": "Slovak Telekom",
+      "filePath": "storage/datasets/telekom/telekom.json"
+    },
+    "orange": {
+      "name": "Orange Slovakia",
+      "filePath": "storage/datasets/orange/orange.json"
+    },
+    "fourka": {
+      "name": "4ka Slovakia",
+      "filePath": "storage/datasets/fourka/fourka.json",
+      "aliases": ["4ka"]
+    },
+    "tesco": {
+      "name": "Tesco Mobile Slovakia",
+      "filePath": "storage/datasets/tesco/tesco.json"
+    }
+  },
+  "retry": {
+    "maxAttempts": 3,
+    "delayMs": 1000
+  }
+}

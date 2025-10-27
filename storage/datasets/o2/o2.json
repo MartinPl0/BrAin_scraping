@@ -1,0 +1,27 @@
+{
+	"provider": "O2 Slovakia",
+	"crawlDate": "2025-10-27T22:09:14.100Z",
+	"lastChecked": "2025-10-27T22:09:14.100Z",
+	"totalPdfs": 1,
+	"successfulPdfs": 0,
+	"failedPdfs": 1,
+	"pdfs": [
+		{
+			"cennikName": "O2 Cenník služieb",
+			"pdfUrl": "https://ppt.o2.sk/documents/2355222/17953437/2025_239_O2_Cennik_21-10.pdf",
+			"pdfType": "Cenník služieb",
+			"rawText": "",
+			"error": "pdfFilePath is not defined"
+		}
+	],
+	"lastUpdate": {
+		"updatedPdfs": 1,
+		"updatedPdfUrls": [
+			"https://ppt.o2.sk/documents/2355222/17953437/2025_239_O2_Cennik_21-10.pdf"
+		],
+		"updateType": "full"
+	},
+	"metadata": {
+		"lastChecked": "2025-10-27T22:09:13.825Z"
+	}
+}

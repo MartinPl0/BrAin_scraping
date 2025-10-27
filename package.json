@@ -1,0 +1,33 @@
+{
+  "name": "brain-scraper-template",
+  "version": "1.0.0",
+  "description": "BrAIn Scraper Template for telco and banking sector data extraction",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js",
+    "dev": "node --inspect src/main.js",
+    "test": "node src/test.js",
+    "api": "node src/api/server.js"
+  },
+  "dependencies": {
+    "apify": "^3.1.7",
+    "axios": "^1.12.2",
+    "cheerio": "^1.0.0-rc.12",
+    "express": "^4.18.2",
+    "nodemailer": "^7.0.10",
+    "pdf.js-extract": "^0.2.1",
+    "puppeteer": "^21.5.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "scraper",
+    "apify",
+    "telco",
+    "banking",
+    "data-extraction"
+  ],
+  "author": "BrAIn Platform",
+  "license": "MIT"
+}

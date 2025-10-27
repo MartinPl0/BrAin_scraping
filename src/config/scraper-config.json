@@ -1,0 +1,202 @@
+{
+  "debug": false,
+  "providers": {
+    "o2": {
+      "name": "O2 Slovakia",
+      "displayName": "O2 Cenník služieb",
+      "crawlUrl": "https://www.o2.sk/podpora/centrum-podpory/cennik",
+      "searchText": "Cenník služieb",
+      "pdfLinkSelector": "a[href$='.pdf']",
+      "dateSelector": ".date, .publish-date, [class*='date']",
+      "dateFormat": "DD.MM.YYYY",
+      "extractionMethod": "section-based",
+      "sections": {
+        "programs.volnost": "π Voľnosť",
+        "programs.pausal": "π Paušál", 
+        "internetServices.vzduchom": "π Internet vzduchom",
+        "internetServices.optikou": "π Internet optikou",
+        "tvServices": "Digitálna televízia π TV",
+        "programs.fer": "π Fér",
+        "dátovka": "π Dátovka",
+        "internationalCalls": "Volania a SMS/MMS do zahraničia",
+        "roaming": "Roaming",
+        "payments": "Platby za služby cez SMS"
+      }
+    },
+    "telekom": {
+      "name": "Telekom Slovakia",
+      "displayName": "Telekom Cenník služieb", 
+      "crawlUrl": "https://www.telekom.sk/info/dokumenty-a-pravne-informacie/dokumenty-na-stiahnutie/cenniky-sluzieb-mobilnej-siete",
+      "searchText": "Cenník pre poskytovanie služieb prostredníctvom mobilnej siete",
+      "pdfLinkSelector": "a[href*='uuid=']",
+      "dateSelector": "a[href*='uuid=']",
+      "dateFormat": "DD.MM.YYYY",
+      "extractionMethod": "section-based",
+      "sections": {
+        "plans.telekom": "PROGRAMY SLUŽIEB TELEKOM PAUŠÁL",
+        "internet.mobilny": "MOBILNÝ INTERNET",
+        "internet.magio": "MAGIO INTERNET VZDUCHOM", 
+        "plans.predplatenka": "PROGRAM SLUŽBY PREDPLATENKA",
+        "services.doplnkove": "DOPLNKOVÉ SLUŽBY",
+        "services.roaming": "INTERNET V ZAHRANIČÍ"
+      }
+    },
+    "orange": {
+      "name": "Orange Slovakia",
+      "displayName": "Orange Cenník služieb",
+      "crawlUrl": "https://www.orange.sk/cennik",
+      "searchText": "Cenníky k hlasovým programom a službám:",
+      "pdfLinkSelector": "a[href*='cennik']",
+      "dateSelector": "a[href*='cennik']",
+      "dateFormat": "DD.MM.YYYY",
+      "extractionMethod": "euro-symbol-based",
+      "targetPdfs": [
+        {
+          "name": "Cenník služieb",
+          "searchText": "Cenník služieb platný od",
+          "selector": "a[href*='cennik-sluzieb-2025-10-08.pdf']",
+          "keywords": ["sluzieb", "cennik", "platny"]
+        },
+        {
+          "name": "Cenník služieb Fix5GNet",
+          "searchText": "Cenník služieb Fix5GNet",
+          "selector": "a[href*='fix5gnet']",
+          "keywords": ["fix5gnet", "fix", "5g"]
+        },
+        {
+          "name": "Cenník služieb Optický FiberNet",
+          "searchText": "Cenník služieb Optický FiberNet",
+          "selector": "a[href*='fibernet']",
+          "keywords": ["fibernet", "fiber", "opticky"]
+        },
+        {
+          "name": "Cenník služieb DSLNet",
+          "searchText": "Cenník služieb DSLNet",
+          "selector": "a[href*='dslnet']",
+          "keywords": ["dslnet", "dsl"]
+        },
+        {
+          "name": "Cenník poskytovania TV služieb",
+          "searchText": "Cenník poskytovania TV služieb",
+          "selector": "a[href*='otv-cez-internet']",
+          "keywords": ["tv", "televizia", "poskytovania"]
+        },
+        {
+          "name": "Cenník všeobecných poplatkov",
+          "searchText": "Cenník všeobecných poplatkov",
+          "selector": "a[href*='vseobecnych-poplatkov']",
+          "keywords": ["poplatkov", "poplatky", "vseobecnych"]
+        }
+      ]
+    },
+    "tesco": {
+      "name": "Tesco Mobile Slovakia",
+      "displayName": "Tesco Mobile Cenník služieb",
+      "crawlUrl": "https://tescomobile.sk/cenniky-a-dokumenty/",
+      "searchText": "Cenník služieb",
+      "pdfLinkSelector": "a[href$='.pdf']",
+      "dateSelector": ".text-gray-400, .text-gray-500, .text-muted, .date-text",
+      "dateFormat": "DD.MM.YYYY",
+      "extractionMethod": "euro-symbol-based",
+      "targetPdfs": [
+        {
+          "name": "Cenník služieb (Tesco mobile Topka)",
+          "searchText": "Cenník služieb (Tesco mobile Topka)",
+          "selector": "a[href*='Topka']",
+          "keywords": ["topka", "cennik", "sluzieb"]
+        },
+        {
+          "name": "Cenník služieb (Tesco mobile Trio)",
+          "searchText": "Cenník služieb (Tesco mobile Trio)",
+          "selector": "a[href*='Trio']",
+          "keywords": ["trio", "cennik", "sluzieb"]
+        }
+      ]
+    },
+    "fourka": {
+      "name": "4ka Slovakia",
+      "displayName": "4ka Cenník služieb",
+      "crawlUrl": "https://www.4ka.sk/podpora/dokumenty-a-cenniky/cenniky-a-dokumenty/",
+      "searchText": "Cenníky",
+      "pdfLinkSelector": "a[href$='.pdf']",
+      "dateSelector": ".text-black-subdued, .date, .publish-date",
+      "dateFormat": "DD.MM.YYYY",
+      "extractionMethod": "mixed",
+      "categories": [
+        {
+          "name": "Cenníky služieb mobilnej siete",
+          "extractionMethod": "euro-symbol-based",
+          "targetPdfs": [
+            {
+              "name": "Cenník mobilných služieb",
+              "searchText": "Cenník mobilných služieb platný od",
+              "keywords": ["mobilnych", "sluzieb", "platny"]
+            },
+            {
+              "name": "Cenník prémiových čísel pre firemných zákazníkov",
+              "searchText": "Cenník prémiových čísel pre firemných zákazníkov",
+              "keywords": ["premiovych", "cisiel", "firemnych"]
+            },
+            {
+              "name": "Cenník 4G INTERNET",
+              "searchText": "Cenník 4G INTERNET",
+              "keywords": ["4g", "internet"]
+            }
+          ]
+        },
+        {
+          "name": "Cenníky zvýhodnených ponúk mobilnej siete",
+          "extractionMethod": "euro-symbol-based",
+          "targetPdfs": [
+            {
+              "name": "Nekonečný paušál pre dvoch za cenu jedného",
+              "searchText": "Nekonečný paušál pre dvoch za cenu jedného",
+              "keywords": ["nekonecny", "pausal", "dvoch"]
+            },
+            {
+              "name": "Rýchla SIMka s digitálnou aktiváciou",
+              "searchText": "Rýchla SIMka s digitálnou aktiváciou",
+              "keywords": ["rychla", "simka", "digitalnou"]
+            },
+            {
+              "name": "Digitálny Žiak",
+              "searchText": "Digitálny Žiak",
+              "keywords": ["digitalny", "ziak"]
+            },
+            {
+              "name": "SLOBODA za 4",
+              "searchText": "SLOBODA za 4",
+              "keywords": ["sloboda", "za", "4"]
+            },
+            {
+              "name": "SLOBODA S MOBILOM",
+              "searchText": "SLOBODA S MOBILOM",
+              "keywords": ["sloboda", "mobilom"]
+            }
+          ]
+        },
+        {
+          "name": "Cenníky služieb pevnej siete",
+          "extractionMethod": "section-based",
+          "targetPdfs": [
+            {
+              "name": "Cenník služieb pevnej siete",
+              "searchText": "Cenník služieb pevnej siete platný od",
+              "keywords": ["sluzieb", "pevnej", "siete"]
+            }
+          ]
+        }
+      ],
+      "sections": {
+        "internet.opticky": "OPTICKÝ INTERNET",
+        "internet.5g": "5G INTERNET",
+        "internet.lte": "LTE INTERNET",
+        "internet.dsl": "DSL INTERNET",
+        "internet.optik_partner": "OPTIK PARTNER INTERNET",
+        "tv.digitalna": "DIGITÁLNA TELEVÍZIA",
+        "telefon.pevna_linka": "PEVNÁ TELEFÓNNA LINKA",
+        "services.zriadenie": "ZRIADENIE SLUŽBY"
+      }
+    }
+  }
+}

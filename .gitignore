@@ -1,0 +1,10 @@
+# Dependencies
+node_modules/
+
+# Project specific directories
+storage/key_value_stores/
+storage/metadata/
+temp/
+
+# IDE files
+.cursor/
