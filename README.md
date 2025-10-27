@@ -100,11 +100,19 @@ src/
 │   ├── config-loader.js          # 🔧 Configuration management
 │   ├── data-validator.js          # ✅ Data validation
 │   ├── dynamic-waiter.js         # ⏳ Smart waiting system
-│   ├── o2-toc-parser.js          # 📋 O2 ToC parsing
-│   ├── telekom-toc-parser.js     # 📋 Telekom ToC parsing
-│   ├── 4ka-toc-parser.js         # 📋 4ka ToC parsing
-│   ├── o2-header-extractor.js    # 🔍 O2 header extraction
-│   └── telekom-header-extractor.js # 🔍 Telekom header extraction
+│   ├── page-extractor.js         # 📄 Page content extraction
+│   ├── error-handler.js          # ⚠️ Error handling utilities
+│   ├── parsers/                  # 📋 Table of Contents parsers
+│   │   ├── o2-toc-parser.js      # 📋 O2 ToC parsing
+│   │   ├── telekom-toc-parser.js # 📋 Telekom ToC parsing
+│   │   └── 4ka-toc-parser.js     # 📋 4ka ToC parsing
+│   ├── extractors/               # 🔍 Header-based extractors
+│   │   ├── o2-header-extractor.js    # 🔍 O2 header extraction
+│   │   └── telekom-header-extractor.js # 🔍 Telekom header extraction
+│   └── mergers/                   # 🔗 JSON data mergers
+│       ├── orange-json-merger.js # 🔗 Orange data consolidation
+│       ├── tesco-json-merger.js  # 🔗 Tesco data consolidation
+│       └── fourka-json-merger.js  # 🔗 4ka data consolidation
 
 ├── notifications/                # 📧 Notification system
 │   └── email-notifier.js         # 📧 Email notifications
