@@ -1,18 +1,21 @@
 const BaseCrawler = require('./base-crawler');
 const cheerio = require('cheerio');
+const RadPdfScraper = require('../scrapers/rad-pdf-scraper');
+const DataStorage = require('../storage/data-storage');
 
 /**
- * O2 Slovakia specific crawler
- * Monitors O2 pricing page for PDF updates
+ * RAD Slovakia specific crawler
+ * Monitors RAD pricing page for PDF updates
  */
-class O2Crawler extends BaseCrawler {
+class RadCrawler extends BaseCrawler {
     constructor(config) {
-        super('O2 Slovakia', config);
+        super('RAD Slovakia', config);
+        this.dataStorage = new DataStorage();
     }
 
     /**
-     * O2-specific PDF link extraction
-     * Looks for PDF links in the pricing page
+     * RAD-specific PDF link extraction
+     * Looks for PDF links in the pricing page and extracts date information
      */
     async extractPdfLinks() {
         try {
@@ -21,12 +24,15 @@ class O2Crawler extends BaseCrawler {
             
             const pdfLinks = [];
             
+            console.log('🔍 Looking for RAD PDF links...');
+            
             // Look for PDF links with various selectors
             const selectors = [
                 'a[href$=".pdf"]',
-                'a[href*="Cennik"]',
+                'a[href*="CENNIK"]',
                 'a[href*="cennik"]',
-                'a[href*="pdf"]'
+                'a[href*="pdf"]',
+                'a.button[href*=".pdf"]' // Specific for RAD download button
             ];
             
             for (const selector of selectors) {
@@ -38,11 +44,15 @@ class O2Crawler extends BaseCrawler {
                         // Convert relative URLs to absolute
                         const absoluteUrl = href.startsWith('http') ? href : new URL(href, this.config.crawlUrl).href;
                         
+                        // Extract date information from surrounding text
+                        const dateInfo = this.extractDateFromContext($, element);
+                        
                         pdfLinks.push({
                             url: absoluteUrl,
                             text: text,
                             selector: selector,
-                            element: $(element).html()
+                            element: $(element).html(),
+                            dateInfo: dateInfo
                         });
                     }
                 });
@@ -59,16 +69,23 @@ class O2Crawler extends BaseCrawler {
                 }
             }
             
-            // Filter out device pricing PDFs (we only want service pricing)
+            // Filter for service pricing PDFs (look for "cennik" in URL or text)
             const filteredLinks = uniqueLinks.filter(link => {
                 const url = link.url.toLowerCase();
                 const text = link.text.toLowerCase();
                 
-                // Skip device pricing PDFs
+                // Must contain "cennik" (pricing) in URL or text
+                const hasCennik = url.includes('cennik') || text.includes('cennik') || 
+                                 url.includes('cenník') || text.includes('cenník');
+                
+                if (!hasCennik) {
+                    console.log(`🚫 Filtering out non-pricing PDF: ${link.url}`);
+                    return false;
+                }
+                
+                // Skip device pricing PDFs if they exist
                 if (url.includes('zariadeni') || url.includes('zariadení') || 
-                    url.includes('cennik_zariadeni') || url.includes('cenník_zariadení') ||
-                    text.includes('zariadeni') || text.includes('zariadení') ||
-                    text.includes('smartfon') || text.includes('telefon')) {
+                    text.includes('zariadeni') || text.includes('zariadení')) {
                     console.log(`🚫 Filtering out device pricing PDF: ${link.url}`);
                     return false;
                 }
@@ -76,16 +93,65 @@ class O2Crawler extends BaseCrawler {
                 return true;
             });
             
-            console.log(`📄 Found ${filteredLinks.length} service pricing PDF links for O2 (filtered from ${uniqueLinks.length} total)`);
+            console.log(`📄 Found ${filteredLinks.length} service pricing PDF links for RAD (filtered from ${uniqueLinks.length} total)`);
+            
+            // Log each found PDF with date info
+            filteredLinks.forEach((link, index) => {
+                console.log(`📄 PDF ${index + 1}: ${link.text || 'Untitled'}`);
+                console.log(`   URL: ${link.url}`);
+                if (link.dateInfo) {
+                    console.log(`   Date: ${link.dateInfo}`);
+                }
+            });
+            
             return filteredLinks;
         } catch (error) {
-            console.error(`❌ Failed to extract PDF links for O2:`, error.message);
+            console.error(`❌ Failed to extract PDF links for RAD:`, error.message);
             throw error;
         }
     }
 
     /**
-     * O2-specific metadata extraction
+     * Extract date information from context around PDF link
+     * @param {Object} $ - Cheerio instance
+     * @param {Object} element - PDF link element
+     * @returns {string|null} Extracted date string or null
+     */
+    extractDateFromContext($, element) {
+        try {
+            // Look for date patterns in the element's text and surrounding context
+            const elementText = $(element).text();
+            const parentText = $(element).parent().text();
+            const siblingText = $(element).siblings().text();
+            
+            const allText = `${elementText} ${parentText} ${siblingText}`;
+            
+            // Common Slovak date patterns
+            const datePatterns = [
+                /platný od (\d{1,2}\.\s*\d{1,2}\.\s*\d{4})/i,
+                /platný od (\d{1,2}\/\d{1,2}\/\d{4})/i,
+                /od (\d{1,2}\.\s*\d{1,2}\.\s*\d{4})/i,
+                /od (\d{1,2}\/\d{1,2}\/\d{4})/i,
+                /(\d{1,2}\.\s*\d{1,2}\.\s*\d{4})/,
+                /(\d{1,2}\/\d{1,2}\/\d{4})/
+            ];
+            
+            for (const pattern of datePatterns) {
+                const match = allText.match(pattern);
+                if (match) {
+                    return match[1].trim();
+                }
+            }
+            
+            return null;
+        } catch (error) {
+            console.warn(`⚠️ Failed to extract date from context: ${error.message}`);
+            return null;
+        }
+    }
+
+    /**
+     * RAD-specific metadata extraction
      * Returns basic metadata without unnecessary publishDate
      */
     async extractMetadata() {
@@ -94,16 +160,15 @@ class O2Crawler extends BaseCrawler {
                 lastChecked: new Date().toISOString()
             };
         } catch (error) {
-            console.error(`❌ Failed to extract metadata for O2:`, error.message);
+            console.error(`❌ Failed to extract metadata for RAD:`, error.message);
             return {
                 lastChecked: new Date().toISOString()
             };
         }
     }
 
-
     /**
-     * Process O2 PDFs and return consolidated results
+     * Process RAD PDFs and return consolidated results
      * This method overrides the base crawl method to handle PDF processing
      * @param {Object} options - Options for selective processing
      * @param {Object} options.reuseCrawlResult - Crawl result to reuse (avoids double crawling)
@@ -135,20 +200,19 @@ class O2Crawler extends BaseCrawler {
                 throw new Error(`No PDF links found for ${this.providerName}`);
             }
             
-            console.log(`📄 Found ${pdfLinks.length} unique PDF links for O2`);
+            console.log(`📄 Found ${pdfLinks.length} unique PDF links for RAD`);
             
-            const primaryPdf = pdfLinks[0];
-            console.log(`📄 Processing PDF 1/1: ${primaryPdf.text || 'O2 Cenník služieb'}`);
+            const primaryPdf = pdfLinks[0]; // Assuming only one primary PDF for RAD
+            console.log(`📄 Processing PDF 1/1: ${primaryPdf.text || 'RAD Cenník služieb'}`);
             console.log(`🔗 URL: ${primaryPdf.url}`);
             
             const allPdfData = [];
             
             try {
-                const O2PdfScraper = require('../scrapers/o2-pdf-scraper');
-                const o2Scraper = new O2PdfScraper();
-                const extractedData = await o2Scraper.scrapePdf(primaryPdf.url, `O2 Cenník služieb`, null, null, true);
+                const radScraper = new RadPdfScraper();
+                const extractedData = await radScraper.scrapePdf(primaryPdf.url, `RAD Cenník služieb`, null, true);
                 
-                // Create consolidated rawText from all sections (like RAD and Telekom)
+                // Create consolidated rawText from all sections (like Telekom)
                 let consolidatedRawText = '';
                 if (extractedData.data?.sections) {
                     Object.values(extractedData.data.sections).forEach(section => {
@@ -159,37 +223,32 @@ class O2Crawler extends BaseCrawler {
                 }
                 
                 const pdfData = {
-                    cennikName: extractedData.cennikName || `O2 Cenník služieb`,
+                    cennikName: extractedData.cennikName || `RAD Cenník služieb`,
                     pdfUrl: primaryPdf.url,
                     pdfType: 'Cenník služieb',
                     rawText: consolidatedRawText.trim(),
-                    data: {
-                        sections: extractedData.data?.sections || {},
-                        summary: extractedData.summary,
-                        extractionInfo: extractedData.extractionInfo
-                    },
                     summary: extractedData.summary,
                     extractionInfo: extractedData.extractionInfo
                 };
                 
-                console.log(`📊 PDF Data Structure for O2 Cenník služieb:`);
+                console.log(`📊 PDF Data Structure for RAD Cenník služieb:`);
                 console.log(`   - Has rawText: ${!!pdfData.rawText}`);
                 console.log(`   - Has summary: ${!!pdfData.summary}`);
                 console.log(`   - Has extractionInfo: ${!!pdfData.extractionInfo}`);
                 console.log(`   - Raw text length: ${pdfData.rawText.length} characters`);
                 
                 if (!pdfData.rawText || pdfData.rawText.trim().length === 0) {
-                    console.error(`❌ No content extracted from O2 PDF. This may indicate a download failure or extraction error.`);
+                    console.error(`❌ No content extracted from RAD PDF. This may indicate a download failure or extraction error.`);
                     pdfData.error = 'No content extracted - possible download failure or extraction error';
                 }
                 
                 allPdfData.push(pdfData);
-                console.log(`✅ Successfully processed O2 Cenník služieb`);
+                console.log(`✅ Successfully processed RAD Cenník služieb`);
                 
             } catch (error) {
-                console.error(`❌ Error processing O2 PDF:`, error.message);
+                console.error(`❌ Error processing RAD PDF:`, error.message);
                 allPdfData.push({
-                    cennikName: `O2 Cenník služieb`,
+                    cennikName: `RAD Cenník služieb`,
                     pdfUrl: primaryPdf.url,
                     pdfType: 'Cenník služieb',
                     rawText: '',
@@ -221,7 +280,7 @@ class O2Crawler extends BaseCrawler {
             return consolidatedResult;
             
         } catch (error) {
-            const errorResult = this.errorHandler.handleError(error, 'o2-crawl', 'O2 Slovakia');
+            const errorResult = this.errorHandler.handleError(error, 'rad-crawl', 'RAD Slovakia');
             throw errorResult.error;
         } finally {
             if (this.browser) {
@@ -231,4 +290,4 @@ class O2Crawler extends BaseCrawler {
     }
 }
 
-module.exports = O2Crawler;
+module.exports = RadCrawler;

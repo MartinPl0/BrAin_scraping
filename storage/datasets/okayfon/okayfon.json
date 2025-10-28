@@ -1,0 +1,43 @@
+{
+	"provider": "Okay fón Slovakia",
+	"pdfs": [
+		{
+			"cennikName": "Cenník dátových balíkov",
+			"pdfUrl": "https://okay.sk/assets/okayfon_cennik.pdf",
+			"pdfType": "Cenník dátových balíkov",
+			"rawText": "2 GB 2 € MINI EÚ27 + 1 slovenská sieť 3 € VIP 69 krajín + 3 slovenské siete Platnosť: 30 dní 20 GB 10 € MINI EÚ27 + 1 slovenská sieť 17 € VIP 69 krajín + 3 slovenské siete Platnosť: 30 dní Dôležité informácie: •   Ceny sú uvedené s DPH •   MINI pokrytie:   Európska únia (27 krajín) + 1 slovenská mobilná sieť •   VIP pokrytie:   69 krajín worldwide + 3 slovenské mobilné siete (O2, Orange, Telekom) • Balíky sú platné 30 dní od aktivácie • Nevyužité dáta sa po vypršaní platnosti prepadajú • Službu môžete kedykoľvek zrušiť bez sankčných poplatkov • Pre zrušenie služby navštívte:   zrus.okay.sk • Viac informácií o spracovaní osobných údajov:   okay.sk/gdpr 10 GB 6 € MINI EÚ27 + 1 slovenská sieť 9 € VIP 69 krajín + 3 slovenské siete Platnosť: 30 dní POPULÁRNY Po vyčerpaní dát sa rýchlosť spomalí na 10% z pôvodnej rýchlosti ✓ Po vyčerpaní 10% bonusových dát sa pripojenie úplne zastaví ✓ Automatická výmena eSIM pri výpadkoch siete ✓ Podpora LTE/5G technológií (kde je dostupné) ✓ Okamžitá aktivácia cez QR kód ✓ Správa cez mobilnú aplikáciu Okay fón ✓ Beneko.com LLP , obchodujúca pod značkou 'Okay fón' | www.okayfon.sk | Strana 2 z 3\n\n",
+			"data": {
+				"sections": {
+					"fullContent": "2 GB 2 € MINI EÚ27 + 1 slovenská sieť 3 € VIP 69 krajín + 3 slovenské siete Platnosť: 30 dní 20 GB 10 € MINI EÚ27 + 1 slovenská sieť 17 € VIP 69 krajín + 3 slovenské siete Platnosť: 30 dní Dôležité informácie: •   Ceny sú uvedené s DPH •   MINI pokrytie:   Európska únia (27 krajín) + 1 slovenská mobilná sieť •   VIP pokrytie:   69 krajín worldwide + 3 slovenské mobilné siete (O2, Orange, Telekom) • Balíky sú platné 30 dní od aktivácie • Nevyužité dáta sa po vypršaní platnosti prepadajú • Službu môžete kedykoľvek zrušiť bez sankčných poplatkov • Pre zrušenie služby navštívte:   zrus.okay.sk • Viac informácií o spracovaní osobných údajov:   okay.sk/gdpr 10 GB 6 € MINI EÚ27 + 1 slovenská sieť 9 € VIP 69 krajín + 3 slovenské siete Platnosť: 30 dní POPULÁRNY Po vyčerpaní dát sa rýchlosť spomalí na 10% z pôvodnej rýchlosti ✓ Po vyčerpaní 10% bonusových dát sa pripojenie úplne zastaví ✓ Automatická výmena eSIM pri výpadkoch siete ✓ Podpora LTE/5G technológií (kde je dostupné) ✓ Okamžitá aktivácia cez QR kód ✓ Správa cez mobilnú aplikáciu Okay fón ✓ Beneko.com LLP , obchodujúca pod značkou 'Okay fón' | www.okayfon.sk | Strana 2 z 3\n\n"
+				},
+				"summary": {
+					"totalSections": 1,
+					"successfulExtractions": 1,
+					"failedExtractions": 0,
+					"totalCharacters": 1141,
+					"originalCharacters": 2055
+				},
+				"extractionInfo": {
+					"extractionMethod": "euro-symbol-based",
+					"pagesWithEuro": 1,
+					"totalPages": 3
+				}
+			},
+			"summary": {
+				"totalSections": 1,
+				"successfulExtractions": 1,
+				"failedExtractions": 0,
+				"totalCharacters": 1141,
+				"originalCharacters": 2055
+			},
+			"extractionInfo": {
+				"extractionMethod": "euro-symbol-based",
+				"pagesWithEuro": 1,
+				"totalPages": 3
+			}
+		}
+	],
+	"metadata": {
+		"lastChecked": "2025-10-28T17:35:07.533Z"
+	}
+}

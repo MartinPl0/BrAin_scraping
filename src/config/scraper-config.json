@@ -197,6 +197,45 @@
         "telefon.pevna_linka": "PEVNÁ TELEFÓNNA LINKA",
         "services.zriadenie": "ZRIADENIE SLUŽBY"
       }
+    },
+    "rad": {
+      "name": "RAD Slovakia",
+      "displayName": "RAD Cenník služieb",
+      "crawlUrl": "https://www.radost.sk/cennik",
+      "searchText": "Cenník služieb",
+      "pdfLinkSelector": "a[href$='.pdf']",
+      "dateSelector": ".date, .publish-date, [class*='date']",
+      "dateFormat": "DD.MM.YYYY",
+      "extractionMethod": "section-based",
+      "sections": {
+        "radost": "Radosť",
+        "datove_sluzby": "Dátové služby",
+        "doplnkove_sluzby": "Doplnkové služby",
+        "ostatne_volania": "Ostatné volania, služby a poplatky",
+        "roaming": "Roaming",
+        "sluzby_zabavy": "Služby mobilnej a nemobilnej zábavy"
+      },
+      "headerAliases": {
+        "sluzby_zabavy": ["Služby mobilnej a nemobilnej zábavy", "Platby za služby cez SMS"]
+      }
+    },
+    "okayfon": {
+      "name": "Okay fón Slovakia",
+      "displayName": "Okay fón Cenník dátových balíkov",
+      "crawlUrl": "https://okay.sk/",
+      "searchText": "Cenník dátových balíkov",
+      "pdfLinkSelector": "a[href*='cennik'], a[href$='.pdf'], a[href*='pdf']",
+      "dateSelector": ".date, .publish-date, [class*='date']",
+      "dateFormat": "DD.MM.YYYY",
+      "extractionMethod": "euro-symbol-based",
+      "targetPdfs": [
+        {
+          "name": "Cenník dátových balíkov",
+          "searchText": "Cenník",
+          "selector": "a[href*='cennik'], a[href$='.pdf'], a[href*='pdf']",
+          "keywords": ["cennik", "datovych", "balikov", "pdf"]
+        }
+      ]
     }
   }
 }

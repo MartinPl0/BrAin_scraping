@@ -3,8 +3,12 @@ const TelekomCrawler = require('./telekom-crawler');
 const OrangeCrawler = require('./orange-crawler');
 const TescoCrawler = require('./tesco-crawler');
 const FourKaCrawler = require('./4ka-crawler');
+const RadCrawler = require('./rad-crawler');
+const OkayfonCrawler = require('./okayfon-crawler');
 const ChangeDetector = require('../utils/change-detector');
 const DataStorage = require('../storage/data-storage');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * Crawler Manager
@@ -50,6 +54,16 @@ class CrawlerManager {
             if (config.providers.fourka && config.providers.fourka.crawlUrl) {
                 this.crawlers.set('fourka', new FourKaCrawler(config.providers.fourka));
                 console.log('✅ 4ka crawler initialized');
+            }
+            
+            if (config.providers.rad && config.providers.rad.crawlUrl) {
+                this.crawlers.set('rad', new RadCrawler(config.providers.rad));
+                console.log('✅ RAD crawler initialized');
+            }
+            
+            if (config.providers.okayfon && config.providers.okayfon.crawlUrl) {
+                this.crawlers.set('okayfon', new OkayfonCrawler(config.providers.okayfon));
+                console.log('✅ Okay fón crawler initialized');
             }
             
             console.log(`🎯 Total crawlers initialized: ${this.crawlers.size}`);
@@ -153,6 +167,88 @@ class CrawlerManager {
     }
 
     /**
+     * Run crawler for a specific provider with change detection
+     * @param {string} providerName - Name of the provider to run
+     * @returns {Promise<Object>} Results with change detection info for the specific provider
+     */
+    async runProviderWithChangeDetection(providerName) {
+        try {
+            console.log(`\n🔍 Running crawler with change detection for ${providerName}...`);
+            
+            if (!this.crawlers.has(providerName)) {
+                throw new Error(`Provider '${providerName}' not found in initialized crawlers`);
+            }
+            
+            // Run only the specific provider, not all providers
+            const crawlResults = await this.runSingleProviderQuickCrawl(providerName);
+            
+            const changeResults = await this.changeDetector.detectChanges(crawlResults);
+            
+            console.log(`\n📊 Change Detection Results for ${providerName}:`);
+            console.log(`   📝 Providers with changes: ${changeResults.summary.providersWithChanges}`);
+            console.log(`   ✅ Unchanged providers: ${changeResults.summary.unchangedProviders}`);
+            console.log(`   ❌ Error providers: ${changeResults.summary.errorProviders}`);
+            console.log(`   📈 Change rate: ${changeResults.summary.changeRate.toFixed(1)}%`);
+            
+            // Check if our specific provider has changes
+            const providerHasChanges = changeResults.providersWithChanges.some(change => change.provider === providerName);
+            
+            if (!providerHasChanges) {
+                console.log(`🎉 No changes detected for ${providerName}! No PDF processing needed.`);
+                return {
+                    efficiencyGained: true,
+                    skippedCrawls: 1,
+                    results: [],
+                    summary: changeResults.summary
+                };
+            }
+            
+            console.log(`\n🚀 Running full crawl for ${providerName}...`);
+            // Run the full crawler to get consistent structure
+            const crawler = this.crawlers.get(providerName);
+            const fullResult = await this.runSingleCrawler(providerName, crawler);
+            
+            return {
+                efficiencyGained: false,
+                skippedCrawls: 0,
+                results: [fullResult],
+                summary: changeResults.summary
+            };
+            
+        } catch (error) {
+            console.error(`Error in runProviderWithChangeDetection for ${providerName}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Run quick metadata crawl for a single provider
+     * Only extracts metadata without downloading PDFs for the specific provider
+     * @param {string} providerName - Name of the provider to crawl
+     * @returns {Promise<Array>} Array of crawl results with metadata for the specific provider
+     */
+    async runSingleProviderQuickCrawl(providerName) {
+        try {
+            console.log(`\n🔍 Running quick metadata crawl for ${providerName}...`);
+            
+            if (!this.crawlers.has(providerName)) {
+                throw new Error(`Provider '${providerName}' not found in initialized crawlers`);
+            }
+            
+            const crawler = this.crawlers.get(providerName);
+            const result = await this.runSingleCrawler(providerName, crawler);
+            
+            console.log(`✅ ${providerName} quick metadata crawl completed`);
+            
+            return [result];
+            
+        } catch (error) {
+            console.error(`❌ Failed to run quick metadata crawl for ${providerName}:`, error.message);
+            throw error;
+        }
+    }
+
+    /**
      * Run quick metadata crawl for change detection
      * Only extracts metadata without downloading PDFs
      * @returns {Promise<Array>} Array of crawl results with metadata
@@ -224,22 +320,18 @@ class CrawlerManager {
             
             const result = {
                 provider: providerName,
-                pdfUrl: primaryPdf.url,
-                pdfText: primaryPdf.text,
+                pdfs: pdfLinks.map(link => ({
+                    pdfUrl: link.url,
+                    pdfType: link.pdfType || 'PDF',
+                    text: link.text,
+                    category: link.category || null
+                })),
                 lastChecked: new Date().toISOString(),
                 allPdfLinks: pdfLinks,
                 crawlUrl: crawler.config.crawlUrl
             };
             
-            if ((providerName.toLowerCase().includes('orange') || providerName.toLowerCase().includes('tesco') || providerName.toLowerCase().includes('fourka')) && pdfLinks.length > 1) {
-                result.pdfs = pdfLinks.map(link => ({
-                    pdfUrl: link.url,
-                    pdfType: link.pdfType || 'PDF',
-                    text: link.text,
-                    category: link.category || null
-                }));
-                console.log(`🔍 ${providerName}: Added ${result.pdfs.length} PDFs from pdfLinks`);
-            }
+            console.log(`🔍 ${providerName}: Added ${result.pdfs.length} PDFs from pdfLinks`);
             
             const duration = Date.now() - startTime;
             console.log(`✅ ${providerName} quick metadata crawl completed in ${duration}ms`);
@@ -288,9 +380,9 @@ class CrawlerManager {
                     
                     const options = {
                         reuseCrawlResult: providerCrawlResult ? {
-                            pdfs: providerCrawlResult.result.pdfs || null,
-                            pdfLinks: providerCrawlResult.result.pdfLinks || null,
-                            metadata: providerCrawlResult.result.metadata || null
+                            pdfs: providerCrawlResult.result.pdfs || null, 
+                            pdfLinks: providerCrawlResult.result.allPdfLinks || null,
+                            metadata: providerCrawlResult.result.lastChecked || null
                         } : null
                     };
                     
@@ -315,7 +407,8 @@ class CrawlerManager {
             
             for (const result of results) {
                 if (result.status === 'fulfilled') {
-                    if (result.value.success) {
+                    // Check if the result has a provider field (successful crawl)
+                    if (result.value && result.value.provider) {
                         const hasFailedPdfs = result.value.failedPdfs && result.value.failedPdfs > 0;
                         if (hasFailedPdfs) {
                             fullErrors.push({
@@ -369,7 +462,7 @@ class CrawlerManager {
             
             const result = await crawler.crawl(options);
             
-            if ((providerName === 'orange' || providerName === 'tesco' || providerName === 'fourka' || providerName === 'o2' || providerName === 'telekom') && result && result.pdfs) {
+            if (result && result.pdfs) {
                 console.log(`💾 Saving ${providerName} results to dataset storage...`);
                 const dataStorage = new DataStorage();
                 
@@ -552,6 +645,37 @@ class CrawlerManager {
     }
 
     /**
+     * Clean up temp files in the temp directory
+     */
+    async cleanupTempFiles() {
+        try {
+            const tempDir = path.join(__dirname, '..', '..', 'temp');
+            
+            if (fs.existsSync(tempDir)) {
+                const files = fs.readdirSync(tempDir);
+                const pdfFiles = files.filter(file => file.endsWith('.pdf'));
+                
+                if (pdfFiles.length > 0) {
+                    console.log(`🧹 Cleaning up ${pdfFiles.length} temp PDF files...`);
+                    
+                    for (const file of pdfFiles) {
+                        try {
+                            const filePath = path.join(tempDir, file);
+                            fs.unlinkSync(filePath);
+                        } catch (error) {
+                            console.warn(`⚠️  Could not delete temp file ${file}:`, error.message);
+                        }
+                    }
+                    
+                    console.log(`✅ Cleaned up ${pdfFiles.length} temp PDF files`);
+                }
+            }
+        } catch (error) {
+            console.warn('⚠️  Error during temp file cleanup:', error.message);
+        }
+    }
+
+    /**
      * Clean up all crawlers
      */
     async cleanup() {
@@ -566,6 +690,9 @@ class CrawlerManager {
                     console.warn(`⚠️  Error cleaning up ${providerName} crawler:`, error.message);
                 }
             }
+            
+            // Clean up any remaining temp files
+            await this.cleanupTempFiles();
             
             this.crawlers.clear();
             this.results = [];

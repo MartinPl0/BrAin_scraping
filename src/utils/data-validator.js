@@ -233,14 +233,20 @@ class DataValidator {
     validatePriceRange(section, sectionName, minPrice, maxPrice) {
         if (!section || typeof section !== 'object') return;
 
-        // Look for price patterns in the section content
+        // Look for price patterns in the section content - improved for European formatting
         const content = JSON.stringify(section);
-        const pricePattern = /(\d+(?:[.,]\d{1,2})?)\s*(?:€|EUR|euro)/gi;
+        const pricePattern = /(\d+(?:[.,]\d+)?)\s*(?:€|EUR|euro)/gi;
         const matches = content.match(pricePattern);
 
         if (matches) {
             matches.forEach(match => {
-                const priceStr = match.replace(/[€EUR\s]/gi, '').replace(',', '.');
+                // Handle European number formatting (comma as decimal separator)
+                let priceStr = match.replace(/[€EUR\s]/gi, '');
+                
+                // Convert European format (comma as decimal) to US format (dot as decimal)
+                // Only replace comma if it's followed by digits (decimal separator)
+                priceStr = priceStr.replace(/,(\d+)$/, '.$1');
+                
                 const price = parseFloat(priceStr);
                 
                 if (!isNaN(price)) {

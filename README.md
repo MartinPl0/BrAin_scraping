@@ -6,14 +6,16 @@ Extracts pricing and service data from telecom provider websites with intelligen
 
 ## 🎯 **What This System Does**
 
-This system automatically monitors telecom provider websites for pricing updates, downloads new PDFs, extracts structured data, and sends it to the BrAIn platform. Currently supports **5 providers** with automated change detection and selective processing.
+This system automatically monitors telecom provider websites for pricing updates, downloads new PDFs, extracts structured data, and sends it to the BrAIn platform. Currently supports **7 providers** with automated change detection and selective processing.
 
 ### **Supported Providers** ✅
 - **O2 Slovakia** - Complete pricing extraction (π Voľnosť, π Paušál, π Fér programs)
 - **Telekom Slovakia** - Voice plans, mobile internet, Magio services
-- **Orange Slovakia** - Complete pricing data extraction
-- **4ka Slovakia** - Multi-PDF consolidated processing
-- **Tesco Mobile Slovakia** - Complete service extraction
+- **Orange Slovakia** - Complete pricing data extraction (6 PDFs)
+- **4ka Slovakia** - Multi-PDF consolidated processing (9 PDFs)
+- **Tesco Mobile Slovakia** - Complete service extraction (2 PDFs)
+- **RAD Slovakia** - Section-based extraction with header aliases
+- **Okay fón Slovakia** - Euro-symbol-based extraction
 
 ### **Key Features** 🚀
 - **Intelligent Change Detection** - Only processes PDFs that have actually changed
@@ -22,6 +24,8 @@ This system automatically monitors telecom provider websites for pricing updates
 - **Consolidated Data** - Merges multiple PDFs into unified datasets
 - **Backup System** - Atomic file operations with automatic backups
 - **Dynamic Extraction** - Adapts to PDF structure changes
+- **Multiple Extraction Methods** - Section-based, euro-symbol-based, and mixed extraction
+- **Header Aliases** - Handles discrepancies between ToC and actual PDF headers
 
 ## 🚀 **Quick Start**
 
@@ -47,6 +51,8 @@ node src/main.js telekom          # Telekom Slovakia
 node src/main.js orange           # Orange Slovakia
 node src/main.js tesco            # Tesco Mobile
 node src/main.js fourka           # 4ka Slovakia
+node src/main.js rad              # RAD Slovakia
+node src/main.js okayfon          # Okay fón Slovakia
 
 # Run all providers with change detection
 node src/main.js --all
@@ -81,19 +87,25 @@ src/
 │   ├── telekom-crawler.js        # 🕷️ Telekom website crawler
 │   ├── orange-crawler.js        # 🕷️ Orange website crawler
 │   ├── tesco-crawler.js          # 🕷️ Tesco Mobile crawler
-│   └── 4ka-crawler.js            # 🕷️ 4ka website crawler
+│   ├── 4ka-crawler.js            # 🕷️ 4ka website crawler
+│   ├── rad-crawler.js            # 🕷️ RAD website crawler
+│   └── okayfon-crawler.js        # 🕷️ Okay fón website crawler
 ├── scrapers/                     # 📄 PDF processing system
 │   ├── o2-pdf-scraper.js         # 📄 O2 PDF scraper
 │   ├── telekom-pdf-scraper.js    # 📄 Telekom PDF scraper
 │   ├── orange-pdf-scraper.js     # 📄 Orange PDF scraper
 │   ├── tesco-pdf-scraper.js      # 📄 Tesco PDF scraper
-│   └── 4ka-pdf-scraper.js        # 📄 4ka PDF scraper
+│   ├── 4ka-pdf-scraper.js        # 📄 4ka PDF scraper
+│   ├── rad-pdf-scraper.js        # 📄 RAD PDF scraper
+│   └── okayfon-pdf-scraper.js    # 📄 Okay fón PDF scraper
 ├── extractors/                   # 📊 Data extraction system
 │   ├── o2-section-extractor.js   # 📊 O2 section extraction
 │   ├── telekom-section-extractor.js # 📊 Telekom section extraction
 │   ├── orange-section-extractor.js # 📊 Orange section extraction
 │   ├── tesco-section-extractor.js # 📊 Tesco section extraction
-│   └── 4ka-section-extractor.js  # 📊 4ka section extraction
+│   ├── 4ka-section-extractor.js  # 📊 4ka section extraction
+│   ├── rad-section-extractor.js  # 📊 RAD section extraction
+│   └── orange-euro-extractor.js # 📊 Orange euro-symbol extraction
 ├── utils/                        # 🔧 Utility system
 │   ├── change-detector.js        # 🔍 Change detection logic
 │   ├── pdf-downloader.js          # 📥 PDF processing
@@ -137,8 +149,14 @@ storage/
 │   ├── tesco/
 │   │   ├── tesco.json           # Single source of truth for Tesco (multi-PDF)
 │   │   └── 000000001.json       # Debug files (when debug=true)
-│   └── fourka/
-│       ├── fourka.json          # Single source of truth for 4ka (multi-PDF)
+│   ├── fourka/
+│   │   ├── fourka.json          # Single source of truth for 4ka (multi-PDF)
+│   │   └── 000000001.json       # Debug files (when debug=true)
+│   ├── rad/
+│   │   ├── rad.json             # Single source of truth for RAD
+│   │   └── 000000001.json       # Debug files (when debug=true)
+│   └── okayfon/
+│       ├── okayfon.json         # Single source of truth for Okay fón
 │       └── 000000001.json       # Debug files (when debug=true)
 ├── metadata/                     # 📋 System metadata
 │   ├── latest-pdf-urls.json     # PDF URL tracking for change detection
@@ -147,7 +165,7 @@ storage/
     └── default/                  # Session and statistics
 ```
 
-**Note**: Each provider saves to a single `{provider}.json` file as the production source of truth. When `debug: true` is set in `scraper-config.json`, numbered files (`000000001.json`, etc.) are also saved for comparison purposes.
+**Note**: Each provider saves to a single `{provider}.json` file as the production source of truth. When `debug: true` is set in `scraper-config.json`, numbered files (`000000001.json`, etc.) are also saved for comparison purposes. Multi-PDF providers (Orange, 4ka, Tesco) use JSON mergers for selective updates, while single-PDF providers (O2, Telekom, RAD, Okay fón) save directly.
 
 ## 📊 **How It Works**
 
@@ -177,6 +195,28 @@ Raw PDF → Text Extraction → Section Parsing → Price Extraction → Data Va
 ```
 Current URLs → Compare with Stored URLs → Identify Changes → Process Only Changed PDFs → Update Storage
 ```
+
+### **5. Extraction Methods**
+
+The system supports multiple extraction strategies based on PDF structure:
+
+#### **Section-Based Extraction** (O2, Telekom, RAD)
+- Extracts Table of Contents (ToC) from PDF
+- Maps configured sections to page numbers
+- Uses header detection to find section boundaries
+- Supports header aliases for ToC/PDF mismatches
+- **Used by**: O2, Telekom, RAD
+
+#### **Euro-Symbol-Based Extraction** (Orange, Tesco, 4ka, Okay fón)
+- Scans PDF pages for € symbols
+- Extracts content only from pages containing pricing
+- Filters out non-pricing pages automatically
+- **Used by**: Orange, Tesco, 4ka, Okay fón
+
+#### **Mixed Extraction** (Some Orange PDFs)
+- Combines both methods for complex PDFs
+- Uses section-based for structured content
+- Falls back to euro-symbol-based for unstructured content
 
 ## 🔧 **Configuration**
 
@@ -246,8 +286,8 @@ Returns combined data from all providers.
       ]
     }
   ],
-  "totalProviders": 5,
-  "successfulProviders": 5,
+  "totalProviders": 7,
+  "successfulProviders": 7,
   "failedProviders": 0
 }
 ```
@@ -260,6 +300,8 @@ GET /orange          # Orange Slovakia
 GET /fourka          # 4ka Slovakia
 GET /4ka             # 4ka Slovakia (alias)
 GET /tesco           # Tesco Mobile
+GET /rad             # RAD Slovakia
+GET /okayfon         # Okay fón Slovakia
 ```
 
 **Response Format:**
@@ -432,12 +474,14 @@ The system is **fully functional** for web crawling, PDF extraction, and data st
 - **Core Functionality**: ✅ Complete
 - **O2 PDF Extraction**: ✅ 100% Accurate  
 - **Telekom PDF Extraction**: ✅ 87.5% Success Rate (7/8 sections)
-- **Orange PDF Extraction**: ✅ Complete pricing data extraction
-- **4ka PDF Extraction**: ✅ Multi-PDF consolidated processing
-- **Tesco Mobile PDF Extraction**: ✅ Complete service extraction
-- **Data Structure**: ✅ Hierarchical JSON
+- **Orange PDF Extraction**: ✅ Complete pricing data extraction (6 PDFs)
+- **4ka PDF Extraction**: ✅ Multi-PDF consolidated processing (9 PDFs)
+- **Tesco Mobile PDF Extraction**: ✅ Complete service extraction (2 PDFs)
+- **RAD PDF Extraction**: ✅ Section-based extraction with header aliases
+- **Okay fón PDF Extraction**: ✅ Euro-symbol-based extraction
+- **Data Structure**: ✅ Hierarchical JSON with consolidated rawText
 - **Error Handling**: ✅ Comprehensive
-- **Multi-Provider Support**: ✅ O2 + Telekom + Orange + 4ka + Tesco
+- **Multi-Provider Support**: ✅ 7 providers with dynamic detection
 - **Dynamic Extraction**: ✅ Adapts to PDF changes
 - **Scalability**: ✅ Ready for expansion
 
@@ -457,6 +501,8 @@ node src/main.js telekom          # Telekom Slovakia
 node src/main.js orange           # Orange Slovakia
 node src/main.js tesco            # Tesco Mobile
 node src/main.js fourka           # 4ka Slovakia
+node src/main.js rad              # RAD Slovakia
+node src/main.js okayfon          # Okay fón Slovakia
 
 # Test with local PDF files
 node src/main.js o2 /path/to/local.pdf

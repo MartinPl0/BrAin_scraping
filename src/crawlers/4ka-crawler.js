@@ -8,8 +8,7 @@ class FourKaCrawler extends BaseCrawler {
 
 
     /**
-     * Optimized PDF link extraction - NO ACCORDION CLICKING NEEDED!
-     * All PDFs are already in the static HTML after clicking "Cenníky" tab
+     * Optimized PDF link extraction 
      */
     async extractPdfLinksForChangeDetection() {
         console.log('🔍 Quick PDF link extraction for 4ka change detection...');

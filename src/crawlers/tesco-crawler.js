@@ -285,7 +285,13 @@ class TescoCrawler extends BaseCrawler {
                         pdfUrl: pdfLink.url,
                         pdfType: pdfLink.pdfType,
                         rawText: extractedData.data?.sections?.fullContent || '',
-                        summary: extractedData.summary,
+                        summary: {
+                            totalSections: extractedData.summary?.totalSections || 0,
+                            successfulExtractions: extractedData.summary?.successfulExtractions || 0,
+                            failedExtractions: extractedData.summary?.failedExtractions || 0,
+                            totalCharacters: extractedData.summary?.totalCharacters || 0,
+                            originalCharacters: extractedData.summary?.originalCharacters || 0
+                        },
                         extractionInfo: extractedData.extractionInfo
                     };
                     

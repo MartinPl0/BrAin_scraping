@@ -146,11 +146,26 @@ class TelekomCrawler extends BaseCrawler {
                     const extractedData = await telekomScraper.scrapePdf(primaryPdf.url, `Telekom Cenník služieb`, null, true);
                 
                 // Create consolidated data structure using the scraper result
+                // Create consolidated rawText from all sections (clean format)
+                let consolidatedRawText = '';
+                if (extractedData.data?.sections) {
+                    Object.values(extractedData.data.sections).forEach(section => {
+                        if (section.rawText) {
+                            consolidatedRawText += section.rawText + '\n\n';
+                        }
+                    });
+                }
+                
                 const pdfData = {
                     cennikName: extractedData.cennikName || `Telekom Cenník služieb`,
                     pdfUrl: primaryPdf.url,
                     pdfType: 'Cenník služieb',
-                    rawText: extractedData.data?.sections ? JSON.stringify(extractedData.data.sections) : '',
+                    rawText: consolidatedRawText.trim(),
+                    data: {
+                        sections: extractedData.data?.sections || {},
+                        summary: extractedData.summary,
+                        extractionInfo: extractedData.extractionInfo
+                    },
                     summary: extractedData.summary,
                     extractionInfo: extractedData.extractionInfo
                 };

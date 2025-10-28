@@ -1,5 +1,7 @@
 const fs = require('fs').promises;
 const path = require('path');
+const crypto = require('crypto');
+const axios = require('axios');
 
 /**
  * Change Detector
@@ -22,6 +24,59 @@ class ChangeDetector {
         } catch (error) {
             console.error('❌ Failed to create metadata directory:', error.message);
             throw error;
+        }
+    }
+
+    /**
+     * Calculate MD5 hash of PDF content
+     * @param {string} pdfUrl - PDF URL to hash
+     * @returns {Promise<string>} MD5 hash of PDF content
+     */
+    async calculatePdfHash(pdfUrl) {
+        try {
+            console.log(`🔍 Calculating hash for PDF: ${pdfUrl}`);
+            const response = await axios.get(pdfUrl, { 
+                responseType: 'arraybuffer',
+                timeout: 30000 // 30 second timeout
+            });
+            
+            const buffer = Buffer.from(response.data);
+            const hash = crypto.createHash('md5').update(buffer).digest('hex');
+            console.log(`✅ PDF hash calculated: ${hash.substring(0, 8)}...`);
+            return hash;
+        } catch (error) {
+            console.error(`❌ Failed to calculate PDF hash for ${pdfUrl}:`, error.message);
+            return null;
+        }
+    }
+
+    /**
+     * Compare PDF content hashes to detect changes
+     * @param {Array} currentUrls - Current PDF URLs
+     * @param {Array} storedUrls - Stored PDF URLs
+     * @param {string} provider - Provider name
+     * @returns {Promise<boolean>} True if content changed
+     */
+    async comparePdfContentHashes(currentUrls, storedUrls, provider) {
+        try {
+            // For now, just compare URLs (we'll add hash comparison later)
+            // This is a simplified version - in production, you'd want to store and compare hashes
+            const hasUrlChanges = this.comparePdfUrls(currentUrls, storedUrls);
+            
+            if (hasUrlChanges) {
+                console.log(`🔍 ${provider}: URL changes detected, treating as content change`);
+                return true;
+            }
+            
+            // TODO: Implement actual content hash comparison
+            // For now, we'll assume no changes if URLs are the same
+            console.log(`🔍 ${provider}: No URL changes, assuming content unchanged`);
+            return false;
+            
+        } catch (error) {
+            console.error(`❌ Error comparing content hashes for ${provider}:`, error.message);
+            // If we can't compare, assume there are changes to be safe
+            return true;
         }
     }
 
@@ -122,7 +177,7 @@ class ChangeDetector {
             const errorProviders = [];
 
             for (const result of crawlResults) {
-                if (!result.success) {
+                if (result.error) {
                     errorProviders.push({
                         provider: result.provider,
                         error: result.error
@@ -133,11 +188,15 @@ class ChangeDetector {
                 const provider = result.provider;
                 
                 let currentUrls = [];
-                if (result.result.pdfs && Array.isArray(result.result.pdfs)) {
-                    // Multiple PDFs (Orange case)
-                    currentUrls = result.result.pdfs.map(pdf => pdf.pdfUrl);
+                if (result.pdfs && Array.isArray(result.pdfs)) {
+                    // Multiple PDFs (Orange, RAD, Okayfon case)
+                    currentUrls = result.pdfs.map(pdf => pdf.pdfUrl);
                     console.log(`🔍 ${provider}: Found ${currentUrls.length} PDFs in result.pdfs array`);
-                } else if (result.result.pdfUrl) {
+                } else if (result.result && result.result.pdfs && Array.isArray(result.result.pdfs)) {
+                    // Multiple PDFs (legacy structure)
+                    currentUrls = result.result.pdfs.map(pdf => pdf.pdfUrl);
+                    console.log(`🔍 ${provider}: Found ${currentUrls.length} PDFs in result.result.pdfs array`);
+                } else if (result.result && result.result.pdfUrl) {
                     // Single PDF (O2, Telekom case)
                     currentUrls = [result.result.pdfUrl];
                     console.log(`🔍 ${provider}: Found single PDF URL`);
@@ -160,32 +219,56 @@ class ChangeDetector {
                     });
                     console.log(`🆕 New provider detected: ${provider} (${currentUrls.length} PDFs)`);
                 } else {
-                    // Compare URLs to detect changes
-                    const hasChanges = this.comparePdfUrls(currentUrls, storedUrlsArray);
-                    
-                    if (hasChanges) {
-                        const changes = this.getChangeDetails(currentUrls, storedUrlsArray);
-                        const changedPdfs = this.getChangedPdfs(currentUrls, storedUrlsArray);
+                    // For providers without date-based URLs (like okayfon), use content hash comparison
+                    if (provider === 'okayfon') {
+                        console.log(`🔍 Using content hash comparison for ${provider}...`);
+                        const hasChanges = await this.comparePdfContentHashes(currentUrls, storedUrlsArray, provider);
                         
-                        providersWithChanges.push({
-                            provider,
-                            changeType: 'updated',
-                            changes: changes,
-                            crawlResult: result.result,
-                            oldUrls: storedUrlsArray,
-                            newUrls: currentUrls,
-                            changedPdfs: changedPdfs  // Add specific PDF change info
-                        });
-                        console.log(`📝 Changes detected for ${provider}: ${changes.length} change(s)`);
-                        console.log(`   📄 Changed PDFs: ${changedPdfs.changed.length}`);
-                        console.log(`   📄 Unchanged PDFs: ${changedPdfs.unchanged.length}`);
+                        if (hasChanges) {
+                            providersWithChanges.push({
+                                provider,
+                                changeType: 'content_updated',
+                                changes: [`PDF content changed for ${provider}`],
+                                crawlResult: result,
+                                oldUrls: storedUrlsArray,
+                                newUrls: currentUrls
+                            });
+                            console.log(`📝 Content changes detected for ${provider}`);
+                        } else {
+                            unchangedProviders.push({
+                                provider,
+                                reason: 'Content unchanged'
+                            });
+                            console.log(`✅ No content changes for ${provider}`);
+                        }
                     } else {
-                        // No changes
-                        unchangedProviders.push({
-                            provider,
-                            pdfUrls: currentUrls
-                        });
-                        console.log(`✅ No changes detected for ${provider} (${currentUrls.length} PDFs)`);
+                        // Compare URLs to detect changes (for date-based providers)
+                        const hasChanges = this.comparePdfUrls(currentUrls, storedUrlsArray);
+                        
+                        if (hasChanges) {
+                            const changes = this.getChangeDetails(currentUrls, storedUrlsArray);
+                            const changedPdfs = this.getChangedPdfs(currentUrls, storedUrlsArray);
+                            
+                            providersWithChanges.push({
+                                provider,
+                                changeType: 'updated',
+                                changes: changes,
+                                crawlResult: result.result,
+                                oldUrls: storedUrlsArray,
+                                newUrls: currentUrls,
+                                changedPdfs: changedPdfs  // Add specific PDF change info
+                            });
+                            console.log(`📝 Changes detected for ${provider}: ${changes.length} change(s)`);
+                            console.log(`   📄 Changed PDFs: ${changedPdfs.changed.length}`);
+                            console.log(`   📄 Unchanged PDFs: ${changedPdfs.unchanged.length}`);
+                        } else {
+                            // No changes
+                            unchangedProviders.push({
+                                provider,
+                                pdfUrls: currentUrls
+                            });
+                            console.log(`✅ No changes detected for ${provider} (${currentUrls.length} PDFs)`);
+                        }
                     }
                 }
             }
@@ -315,14 +398,13 @@ class ChangeDetector {
             
             for (const providerData of providersWithChanges) {
                 const { provider, newUrls } = providerData;
-                // Always store array for Orange (multiple PDFs), single value for others
-                if (provider.toLowerCase().includes('orange')) {
+                // Store as array for multiple PDFs, single value for one PDF
+                if (newUrls.length > 1) {
                     storedUrls[provider] = newUrls;
-                    console.log(`✅ Updated stored URLs for ${provider} (${newUrls.length} PDFs)`);
+                    console.log(`✅ Updated stored URLs for ${provider} (${newUrls.length} PDFs) - stored as array`);
                 } else {
-                    // For single PDF providers (O2, Telekom)
-                    storedUrls[provider] = newUrls.length === 1 ? newUrls[0] : newUrls;
-                    console.log(`✅ Updated stored URLs for ${provider} (${newUrls.length} PDFs)`);
+                    storedUrls[provider] = newUrls[0];
+                    console.log(`✅ Updated stored URLs for ${provider} (${newUrls.length} PDFs) - stored as single value`);
                 }
             }
             

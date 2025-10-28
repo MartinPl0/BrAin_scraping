@@ -1,24 +1,22 @@
 const PdfDownloader = require('../utils/pdf-downloader');
-const TescoSectionExtractor = require('../extractors/tesco-section-extractor');
 const OrangeEuroExtractor = require('../extractors/orange-euro-extractor');
 const DataStorage = require('../storage/data-storage');
 const DataValidator = require('../utils/data-validator');
 
 /**
- * Tesco Mobile PDF Scraper for Tesco Mobile Slovakia price lists
- * Uses euro-symbol-based extraction similar to Orange
+ * Okay fón PDF Scraper for Okay fón Slovakia price lists
+ * Uses euro-symbol-based extraction
  */
-class TescoPdfScraper {
+class OkayfonPdfScraper {
     constructor() {
         this.pdfDownloader = new PdfDownloader();
-        this.sectionExtractor = new TescoSectionExtractor();
-        this.euroExtractor = new OrangeEuroExtractor();
+        this.euroExtractor = new OrangeEuroExtractor(); // Reuse Orange's euro extractor
         this.dataStorage = new DataStorage();
         this.dataValidator = new DataValidator();
     }
 
     /**
-     * Scrape Tesco Mobile PDF price list using euro-symbol-based extraction
+     * Scrape Okay fón PDF price list using euro-symbol-based extraction
      * @param {string} pdfUrl - PDF file URL
      * @param {string} cennikName - Price list name
      * @param {string} localPdfPath - Optional local PDF path
@@ -30,10 +28,10 @@ class TescoPdfScraper {
             if (!cennikName) {
                 const { loadConfig } = require('../utils/config-loader');
                 const config = loadConfig();
-                cennikName = config.providers?.tesco?.displayName || 'Tesco Mobile Cenník služieb';
+                cennikName = config.providers?.okayfon?.displayName || 'Okay fón Cenník dátových balíkov';
             }
             
-            console.log(`Starting Tesco Mobile PDF extraction for: ${cennikName}`);
+            console.log(`Starting Okay fón PDF extraction for: ${cennikName}`);
             console.log(`PDF URL: ${pdfUrl}`);
             
             let pdfFilePath = localPdfPath;
@@ -48,39 +46,26 @@ class TescoPdfScraper {
                 pdfFilePath = localPdfPath;
             }
             
-            const { loadConfig } = require('../utils/config-loader');
-            const config = loadConfig();
-            const extractionMethod = config.providers?.tesco?.extractionMethod || 'euro-symbol-based';
+            console.log(`\nStarting euro symbol based extraction...`);
+            const euroResult = await this.euroExtractor.extractContent(pdfFilePath);
             
-            let extractionResult;
-            
-            if (extractionMethod === 'euro-symbol-based') {
-                console.log(`\nStarting euro symbol based extraction...`);
-                extractionResult = await this.euroExtractor.extractContent(pdfFilePath);
-                
-                const euroResult = extractionResult;
-                extractionResult = {
-                    sections: {
-                        fullContent: euroResult.totalContent
-                    },
-                    summary: {
-                        totalSections: 1,
-                        successfulExtractions: 1,
-                        failedExtractions: 0,
-                        totalCharacters: euroResult.extractionStats.extractedCharacters,
-                        originalCharacters: euroResult.extractionStats.totalCharactersInPdf
-                    },
-                    extractionInfo: {
-                        extractionMethod: 'euro-symbol-based',
-                        pagesWithEuro: euroResult.extractionStats.pagesWithEuro,
-                        totalPages: euroResult.extractionStats.totalPages
-                    }
-                };
-            } else {
-                console.log(`\nStarting simple full-text extraction...`);
-                extractionResult = await this.sectionExtractor.extractFullContent(pdfFilePath);
-            }
-            
+            const extractionResult = {
+                sections: {
+                    fullContent: euroResult.totalContent
+                },
+                summary: {
+                    totalSections: 1,
+                    successfulExtractions: 1,
+                    failedExtractions: 0,
+                    totalCharacters: euroResult.extractionStats.extractedCharacters,
+                    originalCharacters: euroResult.extractionStats.totalCharactersInPdf
+                },
+                extractionInfo: {
+                    extractionMethod: 'euro-symbol-based',
+                    pagesWithEuro: euroResult.extractionStats.pagesWithEuro,
+                    totalPages: euroResult.extractionStats.totalPages
+                }
+            };
             
             console.log(`\nExtraction results:`);
             console.log(`   Total sections: ${extractionResult.summary.totalSections}`);
@@ -110,11 +95,10 @@ class TescoPdfScraper {
                 scrapedAt: new Date().toISOString()
             };
 
-            console.log(`\n🔍 Validating extracted Tesco Mobile data...`);
-            const validationResult = this.dataValidator.validateExtractedData(enrichedData, 'tesco');
+            console.log(`\n🔍 Validating extracted Okay fón data...`);
+            const validationResult = this.dataValidator.validateExtractedData(enrichedData, 'okayfon');
             console.log(this.dataValidator.getValidationSummary(validationResult));
             
-
             if (!validationResult.isValid) {
                 console.error(`❌ Critical validation errors detected. Data will not be saved.`);
                 return {
@@ -149,24 +133,25 @@ class TescoPdfScraper {
                     extractionInfo: enrichedData.data.extractionInfo,
                     timestamp: new Date().toISOString()
                 };
-            } else {
-                return {
-                    success: true,
-                    cennikName: cennikName,
-                    pdfUrl: pdfUrl,
-                    totalSections: extractionResult.summary.totalSections,
-                    successfulExtractions: extractionResult.summary.successfulExtractions,
-                    failedExtractions: extractionResult.summary.failedExtractions,
-                    totalCharacters: extractionResult.summary.totalCharacters,
-                    originalCharacters: extractionResult.summary.originalCharacters,
-                    storage: storageInfo,
-                    timestamp: new Date().toISOString()
-                };
             }
             
-        } catch (error) {
-            console.error(`❌ Error in Tesco Mobile PDF scraping: ${error.message}`);
+            storageInfo = await this.dataStorage.saveToDataset([enrichedData], null, 'okayfon');
             
+            return {
+                success: true,
+                cennikName: cennikName,
+                pdfUrl: pdfUrl,
+                data: enrichedData.data,
+                summary: enrichedData.data.summary,
+                extractionInfo: enrichedData.data.extractionInfo,
+                storageInfo: storageInfo,
+                timestamp: new Date().toISOString()
+            };
+            
+        } catch (error) {
+            console.error(`❌ Error in Okay fón PDF scraping:`, error.message);
+            
+            // Clean up temp file if it exists
             if (!localPdfPath && pdfFilePath) {
                 const fs = require('fs');
                 try {
@@ -186,14 +171,6 @@ class TescoPdfScraper {
             };
         }
     }
-
-
-    /**
-     * Clean up temporary files
-     */
-    cleanup() {
-        this.pdfDownloader.cleanup();
-    }
 }
 
-module.exports = TescoPdfScraper;
+module.exports = OkayfonPdfScraper;

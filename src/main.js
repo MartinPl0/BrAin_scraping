@@ -3,6 +3,7 @@ const DataStorage = require('./storage/data-storage');
 const O2PdfScraper = require('./scrapers/o2-pdf-scraper');
 const TelekomPdfScraper = require('./scrapers/telekom-pdf-scraper');
 const OrangePdfScraper = require('./scrapers/orange-pdf-scraper');
+const RadPdfScraper = require('./scrapers/rad-pdf-scraper');
 
 /**
  * Main class for BrAIn PDF Scraper System
@@ -42,7 +43,7 @@ class BrainScraper {
             
             crawlerManager.initializeCrawlers(config);
             
-            const crawlResults = await crawlerManager.runAllCrawlersWithChangeDetection();
+            const crawlResults = await crawlerManager.runProviderWithChangeDetection('rad');
             
             if (crawlResults.efficiencyGained && crawlResults.skippedCrawls > 0) {
                 console.log(`🎉 Efficiency gained! Skipped ${crawlResults.skippedCrawls} unchanged providers`);
@@ -100,7 +101,7 @@ class BrainScraper {
             
             crawlerManager.initializeCrawlers(config);
             
-            const crawlResults = await crawlerManager.runAllCrawlersWithChangeDetection();
+            const crawlResults = await crawlerManager.runProviderWithChangeDetection('telekom');
             
             if (crawlResults.efficiencyGained && crawlResults.skippedCrawls > 0) {
                 console.log(`🎉 Efficiency gained! Skipped ${crawlResults.skippedCrawls} unchanged providers`);
@@ -112,19 +113,89 @@ class BrainScraper {
             }
             
             const telekomResult = crawlResults.results.find(r => r.provider === 'telekom');
-            if (!telekomResult || !telekomResult.result.pdfUrl) {
+            if (!telekomResult || !telekomResult.result) {
+                throw new Error(`Telekom crawl failed: No crawl result found`);
+            }
+            
+            // Telekom crawler returns structure with pdfs array, not single pdfUrl
+            const telekomPdf = telekomResult.result.pdfs && telekomResult.result.pdfs[0];
+            if (!telekomPdf || !telekomPdf.pdfUrl) {
                 throw new Error(`Telekom crawl failed: No PDF URL found`);
             }
             
             // Now scrape the discovered PDF
             const telekomScraper = new TelekomPdfScraper();
-            const results = await telekomScraper.scrapePdf(telekomResult.result.pdfUrl, telekomConfig.displayName);
+            const results = await telekomScraper.scrapePdf(telekomPdf.pdfUrl, telekomConfig.displayName);
             
             console.log('=== 🚀 Telekom PDF scraping complete ===');
             return [results];
             
         } catch (error) {
             console.error(`Error in Telekom PDF scraping:`, error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * Run RAD PDF scraping for RAD Slovakia price list
+     * @param {string} localPdfPath - Optional local PDF path for testing
+     * @returns {Promise<Array>} Results from RAD price list
+     */
+    async runRadScraper(localPdfPath = null) {
+        try {
+            console.log(`=== 🚀 Starting RAD PDF scraping ===`);
+            
+            const config = loadConfig();
+            const radConfig = config.providers.rad;
+            
+            if (!radConfig) {
+                throw new Error('RAD configuration not found');
+            }
+            
+            if (localPdfPath) {
+                console.log(`📄 Using local PDF: ${localPdfPath}`);
+                const radScraper = new RadPdfScraper();
+                const results = await radScraper.scrapePdf(radConfig.pdfUrl, radConfig.displayName, localPdfPath);
+                return [results];
+            }
+            
+            console.log('🔄 Using dynamic PDF discovery with change detection...');
+            const CrawlerManager = require('./crawlers/crawler-manager');
+            const crawlerManager = new CrawlerManager();
+            
+            crawlerManager.initializeCrawlers(config);
+            
+            const crawlResults = await crawlerManager.runProviderWithChangeDetection('rad');
+            
+            if (crawlResults.efficiencyGained && crawlResults.skippedCrawls > 0) {
+                console.log(`🎉 Efficiency gained! Skipped ${crawlResults.skippedCrawls} unchanged providers`);
+            }
+            
+            if (crawlResults.results.length === 0) {
+                console.log('🎉 No changes detected for RAD! No PDF processing needed.');
+                return [];
+            }
+            
+            const radResult = crawlResults.results.find(r => r.provider === 'rad');
+            if (!radResult || !radResult.result) {
+                throw new Error(`RAD crawl failed: No crawl result found`);
+            }
+            
+            // RAD crawler returns structure with pdfs array, not single pdfUrl
+            const radPdf = radResult.result.pdfs && radResult.result.pdfs[0];
+            if (!radPdf || !radPdf.pdfUrl) {
+                throw new Error(`RAD crawl failed: No PDF URL found`);
+            }
+            
+            // Now scrape the discovered PDF
+            const radScraper = new RadPdfScraper();
+            const results = await radScraper.scrapePdf(radPdf.pdfUrl, radConfig.displayName);
+            
+            console.log('=== 🚀 RAD PDF scraping complete ===');
+            return [results];
+            
+        } catch (error) {
+            console.error(`Error in RAD PDF scraping:`, error.message);
             throw error;
         }
     }
@@ -258,66 +329,214 @@ class BrainScraper {
 
     /**
      * Run 4ka PDF scraping for all 4ka price lists
-     * @param {string} localPdfPath - Optional local PDF path
-     * @returns {Promise<Array>} Array of scraping results
+     * @param {string} localPdfPath - Optional local PDF path for testing
+     * @returns {Promise<Array>} Results from all 4ka price lists
      */
     async runFourKaScraper(localPdfPath = null) {
         try {
-            console.log('=== 🚀 Starting 4ka PDF scraping ===');
+            console.log(`=== 🚀 Starting 4ka PDF scraping ===`);
             
             const config = loadConfig();
-            const fourkaConfig = config.providers?.fourka;
-
+            const fourkaConfig = config.providers.fourka;
+            
             if (!fourkaConfig) {
                 throw new Error('4ka configuration not found');
             }
-
-            // For single PDF mode, use the scraper directly
+            
             if (localPdfPath) {
-                console.log('📄 Using local PDF file...');
+                console.log(`📄 Using local PDF: ${localPdfPath}`);
                 const FourKaPdfScraper = require('./scrapers/4ka-pdf-scraper');
                 const fourkaScraper = new FourKaPdfScraper();
                 const results = await fourkaScraper.scrapePdf(fourkaConfig.pdfUrl, fourkaConfig.displayName, localPdfPath);
                 return [results];
             }
             
-            // For dynamic discovery, use single provider crawling
-            console.log('🔄 Using dynamic PDF discovery for 4ka only...');
+            console.log('🔄 Using dynamic PDF discovery with change detection...');
             const CrawlerManager = require('./crawlers/crawler-manager');
             const crawlerManager = new CrawlerManager();
             
             crawlerManager.initializeCrawlers(config);
             
-            const fourkaCrawler = crawlerManager.crawlers.get('fourka');
-            if (!fourkaCrawler) {
-                throw new Error('4ka crawler not initialized');
+            const crawlResults = await crawlerManager.runProviderWithChangeDetection('fourka');
+            
+            if (crawlResults.efficiencyGained && crawlResults.skippedCrawls > 0) {
+                console.log(`🎉 Efficiency gained! Skipped ${crawlResults.skippedCrawls} unchanged providers`);
             }
             
-            console.log('🚀 Running 4ka crawler directly...');
-            const fourkaResult = await crawlerManager.runSingleCrawler('fourka', fourkaCrawler);
-            
-            if (!fourkaResult || !fourkaResult.result || !fourkaResult.result.pdfs) {
-                throw new Error(`4ka consolidated crawl failed: No PDF data found`);
+            // If no changes detected, return existing data
+            if (crawlResults.efficiencyGained && crawlResults.results.length === 0) {
+                console.log('📄 No changes detected, returning existing data...');
+                const fs = require('fs');
+                const path = require('path');
+                const existingDataPath = path.join(__dirname, '..', 'storage', 'datasets', 'fourka', 'fourka.json');
+                
+                if (fs.existsSync(existingDataPath)) {
+                    const existingData = JSON.parse(fs.readFileSync(existingDataPath, 'utf8'));
+                    return [existingData];
+                } else {
+                    throw new Error('No changes detected and no existing data found');
+                }
             }
             
-            const consolidatedResult = fourkaResult.result;
+            const fourkaResult = crawlResults.results.find(r => r.provider === 'fourka');
+            if (!fourkaResult || !fourkaResult.result) {
+                throw new Error(`4ka crawl failed: No crawl result found`);
+            }
             
-            console.log(`📊 4ka Consolidated Results:`);
-            console.log(`   Total PDFs: ${consolidatedResult.totalPdfs}`);
-            console.log(`   Successful: ${consolidatedResult.successfulPdfs}`);
-            console.log(`   Failed: ${consolidatedResult.failedPdfs}`);
+            // 4ka crawler returns structure with pdfs array, not single pdfUrl
+            const fourkaPdfs = fourkaResult.result.pdfs && fourkaResult.result.pdfs;
+            if (!fourkaPdfs || fourkaPdfs.length === 0) {
+                throw new Error(`4ka crawl failed: No PDF URLs found`);
+            }
             
-            // Display individual PDF results
-            consolidatedResult.pdfs.forEach((pdf, index) => {
-                const status = pdf.error ? '❌' : '✅';
-                const charCount = pdf.rawText ? pdf.rawText.length : 0;
-                console.log(`${status} PDF ${index + 1} (${pdf.pdfType}): ${charCount} characters extracted`);
-            });
+            // Now scrape the discovered PDFs
+            const FourKaPdfScraper = require('./scrapers/4ka-pdf-scraper');
+            const fourkaScraper = new FourKaPdfScraper();
+            const results = await fourkaScraper.scrapePdf(fourkaPdfs[0].pdfUrl, fourkaConfig.displayName);
             
-            return [consolidatedResult];
+            return [results];
             
         } catch (error) {
             console.error(`Error in 4ka PDF scraping:`, error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * Run Okay fón PDF scraping for all Okay fón price lists
+     * @param {string} localPdfPath - Optional local PDF path for testing
+     * @returns {Promise<Array>} Results from all Okay fón price lists
+     */
+    async runOkayfonScraper(localPdfPath = null) {
+        try {
+            console.log(`=== 🚀 Starting Okay fón PDF scraping ===`);
+            
+            const config = loadConfig();
+            const okayfonConfig = config.providers.okayfon;
+            
+            if (!okayfonConfig) {
+                throw new Error('Okay fón configuration not found');
+            }
+            
+            if (localPdfPath) {
+                console.log(`📄 Using local PDF: ${localPdfPath}`);
+                const OkayfonPdfScraper = require('./scrapers/okayfon-pdf-scraper');
+                const okayfonScraper = new OkayfonPdfScraper();
+                const results = await okayfonScraper.scrapePdf(okayfonConfig.pdfUrl, okayfonConfig.displayName, localPdfPath);
+                return [results];
+            }
+            
+            console.log('🔄 Using dynamic PDF discovery with change detection...');
+            const CrawlerManager = require('./crawlers/crawler-manager');
+            const crawlerManager = new CrawlerManager();
+            
+            crawlerManager.initializeCrawlers(config);
+            
+            const crawlResults = await crawlerManager.runProviderWithChangeDetection('okayfon');
+            
+            if (crawlResults.efficiencyGained && crawlResults.skippedCrawls > 0) {
+                console.log(`🎉 Efficiency gained! Skipped ${crawlResults.skippedCrawls} unchanged providers`);
+            }
+            
+            // If no changes detected, return existing data
+            if (crawlResults.efficiencyGained && crawlResults.results.length === 0) {
+                console.log('📄 No changes detected, returning existing data...');
+                const fs = require('fs');
+                const path = require('path');
+                const existingDataPath = path.join(__dirname, '..', 'storage', 'datasets', 'okayfon', 'okayfon.json');
+                
+                if (fs.existsSync(existingDataPath)) {
+                    const existingData = JSON.parse(fs.readFileSync(existingDataPath, 'utf8'));
+                    return [existingData];
+                } else {
+                    throw new Error('No changes detected and no existing data found');
+                }
+            }
+            
+            const okayfonResult = crawlResults.results.find(r => r.provider === 'okayfon');
+            if (!okayfonResult) {
+                throw new Error(`Okay fón crawl failed: No crawl result found`);
+            }
+            
+            // Okay fón crawler returns structure with pdfs array nested under result
+            const okayfonPdfs = okayfonResult.result.pdfs && okayfonResult.result.pdfs;
+            if (!okayfonPdfs || okayfonPdfs.length === 0) {
+                throw new Error(`Okay fón crawl failed: No PDF URLs found`);
+            }
+            
+            // Now scrape the discovered PDFs
+            const OkayfonPdfScraper = require('./scrapers/okayfon-pdf-scraper');
+            const okayfonScraper = new OkayfonPdfScraper();
+            const results = await okayfonScraper.scrapePdf(okayfonPdfs[0].pdfUrl, okayfonConfig.displayName);
+            
+            return [results];
+            
+        } catch (error) {
+            console.error(`Error in Okay fón PDF scraping:`, error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * Run RAD PDF scraping for all RAD price lists
+     * @param {string} localPdfPath - Optional local PDF path for testing
+     * @returns {Promise<Array>} Results from all RAD price lists
+     */
+    async runRadScraper(localPdfPath = null) {
+        try {
+            console.log(`=== 🚀 Starting RAD PDF scraping ===`);
+            
+            const config = loadConfig();
+            const radConfig = config.providers.rad;
+            
+            if (!radConfig) {
+                throw new Error('RAD configuration not found');
+            }
+            
+            if (localPdfPath) {
+                console.log(`📄 Using local PDF: ${localPdfPath}`);
+                const radScraper = new RadPdfScraper();
+                const results = await radScraper.scrapePdf(radConfig.pdfUrl, radConfig.displayName, localPdfPath);
+                return [results];
+            }
+            
+            console.log('🔄 Using dynamic PDF discovery with change detection...');
+            const CrawlerManager = require('./crawlers/crawler-manager');
+            const crawlerManager = new CrawlerManager();
+            
+            crawlerManager.initializeCrawlers(config);
+            
+            const crawlResults = await crawlerManager.runProviderWithChangeDetection('rad');
+            
+            if (crawlResults.efficiencyGained && crawlResults.skippedCrawls > 0) {
+                console.log(`🎉 Efficiency gained! Skipped ${crawlResults.skippedCrawls} unchanged providers`);
+            }
+            
+            if (crawlResults.results.length === 0) {
+                console.log('🎉 No changes detected for RAD! No PDF processing needed.');
+                return [];
+            }
+            
+            const radResult = crawlResults.results.find(r => r.provider === 'rad');
+            if (!radResult || !radResult.result) {
+                throw new Error(`RAD crawl failed: No crawl result found`);
+            }
+            
+            // RAD crawler returns structure with pdfs array, not single pdfUrl
+            const radPdf = radResult.result.pdfs && radResult.result.pdfs[0];
+            if (!radPdf || !radPdf.pdfUrl) {
+                throw new Error(`RAD crawl failed: No PDF URL found`);
+            }
+            
+            // Now scrape the discovered PDF
+            const radScraper = new RadPdfScraper();
+            const results = await radScraper.scrapePdf(radPdf.pdfUrl, radConfig.displayName);
+            
+            console.log('=== 🚀 RAD PDF scraping complete ===');
+            return [results];
+            
+        } catch (error) {
+            console.error(`Error in RAD PDF scraping:`, error.message);
             throw error;
         }
     }
@@ -342,6 +561,8 @@ node src/main.js telekom          - Run Telekom Slovakia scraper
 node src/main.js orange           - Run Orange Slovakia scraper
 node src/main.js tesco            - Run Tesco Mobile Slovakia scraper
 node src/main.js fourka           - Run 4ka Slovakia scraper
+node src/main.js rad              - Run RAD Slovakia scraper
+node src/main.js okayfon          - Run Okay fón Slovakia scraper
 
 📖 Documentation:
 - SYSTEM_OVERVIEW.md - Complete system documentation
@@ -353,6 +574,8 @@ node src/main.js telekom          # Run Telekom scraper
 node src/main.js orange           # Run Orange scraper
 node src/main.js tesco            # Run Tesco Mobile scraper
 node src/main.js fourka           # Run 4ka scraper
+node src/main.js rad              # Run RAD scraper
+node src/main.js okayfon          # Run Okay fón scraper
 node src/main.js --all            # Run all providers with change detection
 node src/main.js --changes        # Show change detection status
 node src/main.js --sections      # Show configurable sections
@@ -469,7 +692,26 @@ async function main() {
                 } else {
                     console.log('\n📋 Providers with changes:');
                     crawlResults.results.forEach(result => {
-                        console.log(`   ✅ ${result.provider}: ${result.result.pdfUrl}`);
+                        // Check if result has the consolidated structure (totalPdfs at top level)
+                        // or if we need to calculate from the pdfs array (nested under result)
+                        const totalPdfs = result.totalPdfs !== undefined ? result.totalPdfs : (result.result?.pdfs ? result.result.pdfs.length : 0);
+                        const successfulPdfs = result.successfulPdfs !== undefined ? result.successfulPdfs : (result.result?.pdfs ? result.result.pdfs.filter(pdf => !pdf.error).length : 0);
+                        const failedPdfs = result.failedPdfs !== undefined ? result.failedPdfs : (result.result?.pdfs ? result.result.pdfs.filter(pdf => pdf.error).length : 0);
+                        
+                        // If we still don't have PDF info, it means the data was saved but not returned in the results array
+                        // In this case, just show "Processed" since we know from the logs that it was successful
+                        const pdfInfo = totalPdfs > 0 
+                            ? `${totalPdfs} PDF(s) (${successfulPdfs} successful, ${failedPdfs} failed)` 
+                            : (result.provider ? 'Processed' : 'No PDFs');
+                        console.log(`   ✅ ${result.provider}: ${pdfInfo}`);
+                    });
+                }
+                
+                // Display failed providers
+                if (crawlResults.errors && crawlResults.errors.length > 0) {
+                    console.log('\n❌ Providers with errors:');
+                    crawlResults.errors.forEach(error => {
+                        console.log(`   ❌ ${error.provider}: ${error.error}`);
                     });
                 }
                 
@@ -508,6 +750,23 @@ async function main() {
             }
             const results = await scraper.runTelekomScraper(localPdfPath);
             console.log('\n=== 🚀 Telekom Scraping Results ===');
+            results.forEach(result => {
+                if (result.success) {
+                    console.log(`✅ ${result.cennikName}: ${result.totalSections} sections, ${result.successfulExtractions} successful extractions, ${result.totalCharacters} characters`);
+                } else {
+                    console.log(`❌ ${result.cennikName}: ${result.error}`);
+                }
+            });
+            process.exit(0);
+        }
+        
+        if (scraperName === 'rad') {
+            const localPdfPath = args[1]; // Optional: path to local PDF
+            if (localPdfPath) {
+                console.log(`📄 Using local PDF: ${localPdfPath}`);
+            }
+            const results = await scraper.runRadScraper(localPdfPath);
+            console.log('\n=== 🚀 RAD Scraping Results ===');
             results.forEach(result => {
                 if (result.success) {
                     console.log(`✅ ${result.cennikName}: ${result.totalSections} sections, ${result.successfulExtractions} successful extractions, ${result.totalCharacters} characters`);
@@ -570,8 +829,47 @@ async function main() {
             process.exit(0);
         }
         
+        if (scraperName === 'okayfon') {
+            const localPdfPath = args[1]; // Optional: path to local PDF
+            if (localPdfPath) {
+                console.log(`📄 Using local PDF: ${localPdfPath}`);
+            }
+            const results = await scraper.runOkayfonScraper(localPdfPath);
+            console.log('\n=== 🚀 Okay fón Scraping Results ===');
+            results.forEach(result => {
+                if (result.success || result.cennikName) {
+                    const summary = result.summary || result.data?.summary;
+                    if (summary) {
+                        console.log(`✅ ${result.cennikName}: ${summary.totalSections} sections, ${summary.successfulExtractions} successful extractions, ${summary.totalCharacters} characters`);
+                    } else {
+                        console.log(`✅ ${result.cennikName}: Data loaded from storage`);
+                    }
+                } else {
+                    console.log(`❌ ${result.cennikName || 'Unknown'}: ${result.error || 'Unknown error'}`);
+                }
+            });
+            process.exit(0);
+        }
+        
+        if (scraperName === 'rad') {
+            const localPdfPath = args[1]; // Optional: path to local PDF
+            if (localPdfPath) {
+                console.log(`📄 Using local PDF: ${localPdfPath}`);
+            }
+            const results = await scraper.runRadScraper(localPdfPath);
+            console.log('\n=== 🚀 RAD Scraping Results ===');
+            results.forEach(result => {
+                if (result.success) {
+                    console.log(`✅ ${result.cennikName}: ${result.totalSections} sections, ${result.successfulExtractions} successful extractions, ${result.totalCharacters} characters`);
+                } else {
+                    console.log(`❌ ${result.cennikName}: ${result.error}`);
+                }
+            });
+            process.exit(0);
+        }
+        
         if (scraperName) {
-            console.log(`❌ Scraper '${scraperName}' not supported. Available: o2, telekom, orange, tesco, fourka`);
+            console.log(`❌ Scraper '${scraperName}' not supported. Available: o2, telekom, orange, tesco, fourka, rad`);
             process.exit(1);
         } else {
             showHelp();
