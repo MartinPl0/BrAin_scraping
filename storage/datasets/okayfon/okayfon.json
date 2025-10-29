@@ -34,10 +34,17 @@
 				"extractionMethod": "euro-symbol-based",
 				"pagesWithEuro": 1,
 				"totalPages": 3
+			},
+			"validation": {
+				"isValid": true,
+				"errorCount": 0,
+				"warningCount": 0,
+				"errors": [],
+				"warnings": []
 			}
 		}
 	],
 	"metadata": {
-		"lastChecked": "2025-10-28T17:35:07.533Z"
+		"lastChecked": "2025-10-29T21:25:44.449Z"
 	}
 }

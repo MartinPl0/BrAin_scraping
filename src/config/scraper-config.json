@@ -1,5 +1,19 @@
 {
   "debug": false,
+
+  "email": {
+    "smtp": {
+      "host": "smtp.gmail.com",
+      "port": 587,
+      "secure": false,
+      "auth": {
+        "user": "",
+        "pass": ""
+      }
+    },
+    "from": "",
+    "to": []
+  },
   "providers": {
     "o2": {
       "name": "O2 Slovakia",
@@ -236,6 +250,48 @@
           "keywords": ["cennik", "datovych", "balikov", "pdf"]
         }
       ]
+    },
+    "juro": {
+      "name": "Juro Slovakia",
+      "displayName": "Juro Cenník služieb",
+      "crawlUrl": "https://www.telekom.sk/info/dokumenty-a-pravne-informacie/dokumenty-na-stiahnutie/cenniky-sluzieb-mobilnej-siete",
+      "searchText": "Cenník pre poskytovanie služby Juro",
+      "pdfLinkSelector": "a[href*='juro'], a[href*='Juro'], a[href*='uuid=']",
+      "dateSelector": "a[href*='juro'], a[href*='Juro']",
+      "dateFormat": "DD.MM.YYYY",
+      "extractionMethod": "euro-symbol-based",
+      "keywords": ["juro", "cennik", "sluzby"]
+    },
+    "funfon": {
+      "name": "Funfon Slovakia",
+      "displayName": "Funfon Cenník služieb",
+      "crawlUrl": "https://www.funfon.sk/cennik",
+      "searchText": "Cenník FunFón Férofka",
+      "pdfLinkSelector": "a[href*='cennik-funfon-ferofka'], a[href$='.pdf']",
+      "dateSelector": ".date, .publish-date, [class*='date']",
+      "dateFormat": "DD.MM.YYYY",
+      "extractionMethod": "section-based",
+      "sections": {
+        "obnova_kreditu": "Obnova kreditu",
+        "hovory_v_sr": "Hovory v SR",
+        "sms_spravy": "SMS správy",
+        "mms_spravy": "MMS správy",
+        "funfon_web": "FunFón Web",
+        "funfon_roaming": "FunFón roaming",
+        "hovory_v_roamingu": "Hovory v roamingu",
+        "sms_v_roamingu": "SMS v roamingu",
+        "datovy_roaming": "Dátový roaming",
+        "ostatne_sluzby": "Ostatné služby a poplatky",
+        "zabavne_sluzby": "Zábavné služby",
+        "sluzby_orange": "Služby poskytované pod značkou Orange",
+        "informacne_sluzby": "Informačné služby",
+        "cennik_dodatkovych": "Cenník dočasných krátkodobých ponúk"
+      },
+      "headerAliases": {
+        "hovory_v_sr": ["Hovory v SR", "Hovory"],
+        "mms_spravy": ["MMS správy", "MMS"],
+        "sms_v_roamingu": ["Ceny za odoslanie SMS správy v roamingu1", "Ceny za odoslanie SMS správy v roamingu", "SMS v roamingu"]
+      }
     }
   }
 }

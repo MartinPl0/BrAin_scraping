@@ -8,3 +8,6 @@ temp/
 
 # IDE files
 .cursor/
+
+# Environment variables
+.env

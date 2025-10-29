@@ -145,7 +145,7 @@ class O2Crawler extends BaseCrawler {
             
             try {
                 const O2PdfScraper = require('../scrapers/o2-pdf-scraper');
-                const o2Scraper = new O2PdfScraper();
+                const o2Scraper = new O2PdfScraper(this.errorMonitor);
                 const extractedData = await o2Scraper.scrapePdf(primaryPdf.url, `O2 Cenník služieb`, null, null, true);
                 
                 // Create consolidated rawText from all sections (like RAD and Telekom)
@@ -169,6 +169,7 @@ class O2Crawler extends BaseCrawler {
                         extractionInfo: extractedData.extractionInfo
                     },
                     summary: extractedData.summary,
+                    validation: extractedData.metadata?.validation,
                     extractionInfo: extractedData.extractionInfo
                 };
                 
@@ -221,8 +222,13 @@ class O2Crawler extends BaseCrawler {
             return consolidatedResult;
             
         } catch (error) {
-            const errorResult = this.errorHandler.handleError(error, 'o2-crawl', 'O2 Slovakia');
-            throw errorResult.error;
+            if (this.errorMonitor) {
+                const errorResult = this.errorMonitor.handleError(error, 'o2-crawl', 'O2 Slovakia');
+                throw errorResult.error;
+            } else {
+                console.error(`❌ [O2 Slovakia] o2-crawl: ${error.message}`);
+                throw error;
+            }
         } finally {
             if (this.browser) {
                 await this.cleanup();

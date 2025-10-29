@@ -1,7 +1,7 @@
 {
 	"provider": "fourka",
-	"crawlDate": "2025-10-28T17:35:14.099Z",
-	"lastChecked": "2025-10-28T17:35:14.099Z",
+	"crawlDate": "2025-10-29T21:05:51.976Z",
+	"lastChecked": "2025-10-29T21:05:51.976Z",
 	"totalPdfs": 9,
 	"successfulPdfs": 9,
 	"failedPdfs": 0,
@@ -23,7 +23,16 @@
 				"totalPages": 44,
 				"validation": {
 					"errors": [],
-					"warnings": [],
+					"warnings": [
+						"Fourka general: Price 300€ seems too high (expected 200-)",
+						"Fourka general: Price 300€ seems too high (expected 200-)",
+						"Fourka general: Price 300€ seems too high (expected 200-)",
+						"Fourka general: Price 300€ seems too high (expected 200-)",
+						"Fourka general: Price 300€ seems too high (expected 200-)",
+						"Fourka general: Price 300€ seems too high (expected 200-)",
+						"Fourka general: Price 300€ seems too high (expected 200-)",
+						"Fourka general: Price 300€ seems too high (expected 200-)"
+					],
 					"isValid": true
 				}
 			}
@@ -45,7 +54,9 @@
 				"totalPages": 2,
 				"validation": {
 					"errors": [],
-					"warnings": [],
+					"warnings": [
+						"Fourka general: Price 329.03€ seems too high (expected 200-)"
+					],
 					"isValid": true
 				}
 			}
@@ -177,7 +188,12 @@
 				"totalPages": 2,
 				"validation": {
 					"errors": [],
-					"warnings": [],
+					"warnings": [
+						"Fourka general: Price 300€ seems too high (expected 200-)",
+						"Fourka general: Price 300.01€ seems too high (expected 200-)",
+						"Fourka general: Price 550€ seems too high (expected 200-)",
+						"Fourka general: Price 550€ seems too high (expected 200-)"
+					],
 					"isValid": true
 				}
 			}
@@ -198,7 +214,9 @@
 				"totalPages": 0,
 				"validation": {
 					"errors": [],
-					"warnings": [],
+					"warnings": [
+						"Missing expected Fourka content sections"
+					],
 					"isValid": true
 				}
 			}
@@ -219,7 +237,7 @@
 		],
 		"updateType": "full"
 	},
-	"metadata": "2025-10-28T17:34:51.901Z",
+	"metadata": "2025-10-29T21:05:06.983Z",
 	"selectiveProcessing": {
 		"enabled": false,
 		"processedCount": 9,

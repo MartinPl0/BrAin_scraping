@@ -8,11 +8,12 @@ const DataValidator = require('../utils/data-validator');
  * Extracts sections using ToC-guided header detection
  */
 class TelekomPdfScraper {
-    constructor() {
+    constructor(errorMonitor = null) {
         this.pdfDownloader = new PdfDownloader();
         this.sectionExtractor = new TelekomSectionExtractor();
         this.dataStorage = new DataStorage();
         this.dataValidator = new DataValidator();
+        this.errorMonitor = errorMonitor;
     }
 
     /**
@@ -85,6 +86,40 @@ class TelekomPdfScraper {
             console.log(`\n🔍 Validating extracted Telekom data...`);
             const validationResult = this.dataValidator.validateExtractedData(enrichedData, 'telekom');
             console.log(this.dataValidator.getValidationSummary(validationResult));
+            
+            // Record validation warnings in ErrorMonitor
+            if (this.errorMonitor && validationResult.warnings.length > 0) {
+                validationResult.warnings.forEach(warning => {
+                    this.errorMonitor.recordWarning({
+                        provider: 'Telekom Slovakia',
+                        operation: 'data-validation',
+                        message: warning,
+                        context: {
+                            pdfUrl: pdfUrl,
+                            cennikName: cennikName,
+                            validationType: 'extracted-data'
+                        }
+                    });
+                });
+            }
+
+            // Record validation errors (if any pass through)
+            if (this.errorMonitor && validationResult.errors.length > 0) {
+                validationResult.errors.forEach(error => {
+                    this.errorMonitor.recordError({
+                        provider: 'Telekom Slovakia',
+                        operation: 'data-validation',
+                        type: 'VALIDATION_ERROR',
+                        message: error,
+                        severity: 'error',
+                        context: {
+                            pdfUrl: pdfUrl,
+                            cennikName: cennikName,
+                            validationType: 'extracted-data'
+                        }
+                    });
+                });
+            }
             
             enrichedData.metadata.validation = {
                 isValid: validationResult.isValid,

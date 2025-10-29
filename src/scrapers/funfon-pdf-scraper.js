@@ -1,23 +1,23 @@
 const PdfDownloader = require('../utils/pdf-downloader');
-const RadSectionExtractor = require('../extractors/rad-section-extractor');
+const FunfonSectionExtractor = require('../extractors/funfon-section-extractor');
 const DataStorage = require('../storage/data-storage');
 const DataValidator = require('../utils/data-validator');
 
 /**
- * RAD PDF Scraper for RAD Slovakia price lists
- * Extracts sections using RAD-specific ToC-guided header detection
+ * Funfon PDF Scraper for Funfon Slovakia price lists
+ * Extracts sections using ToC-guided header detection
  */
-class RadPdfScraper {
+class FunfonPdfScraper {
     constructor(errorMonitor = null) {
         this.pdfDownloader = new PdfDownloader();
-        this.sectionExtractor = new RadSectionExtractor();
-        this.errorMonitor = errorMonitor;
+        this.sectionExtractor = new FunfonSectionExtractor();
         this.dataStorage = new DataStorage();
         this.dataValidator = new DataValidator();
+        this.errorMonitor = errorMonitor;
     }
 
     /**
-     * Scrape RAD PDF price list using RAD-specific ToC-guided section extraction
+     * Scrape Funfon PDF price list using ToC-guided section extraction
      * @param {string} pdfUrl - PDF file URL
      * @param {string} cennikName - Price list name
      * @param {string} localPdfPath - Optional local PDF path
@@ -25,32 +25,54 @@ class RadPdfScraper {
      * @returns {Promise<Object>} Scraping results
      */
     async scrapePdf(pdfUrl, cennikName = null, localPdfPath = null, skipStorage = false) {
+        let pdfFilePath = null; // Declare at function scope
         try {
             if (!cennikName) {
                 const { loadConfig } = require('../utils/config-loader');
                 const config = loadConfig();
-                cennikName = config.providers?.rad?.displayName || 'RAD Cenník služieb';
+                cennikName = config.providers?.funfon?.displayName || 'Funfon Cenník služieb';
             }
             
-            console.log(`Starting RAD PDF section-based scraping for: ${cennikName}`);
+            console.log(`Starting Funfon PDF section-based scraping for: ${cennikName}`);
             console.log(`PDF URL: ${pdfUrl}`);
             
             let pdfFilePath = localPdfPath;
             
             if (!localPdfPath) {
                 console.log(`Downloading PDF from: ${pdfUrl}`);
-                const result = await this.pdfDownloader.downloadAndExtractPdf(pdfUrl, true);
-                pdfFilePath = result.filePath;
-                console.log(`PDF downloaded to: ${pdfFilePath}`);
+                try {
+                    const result = await this.pdfDownloader.downloadAndExtractPdf(pdfUrl, true);
+                    pdfFilePath = result.filePath;
+                    console.log(`PDF downloaded to: ${pdfFilePath}`);
+                } catch (downloadError) {
+                    // Record provider failure in error monitor
+                    if (this.errorMonitor) {
+                        this.errorMonitor.recordError({
+                            provider: 'Funfon Slovakia',
+                            operation: 'pdf-download',
+                            type: downloadError.statusCode === 403 ? 'FORBIDDEN_ERROR' : 'NETWORK_ERROR',
+                            message: downloadError.statusCode 
+                                ? `HTTP ${downloadError.statusCode}: Failed to download PDF from ${pdfUrl} - ${downloadError.statusMessage || downloadError.message}`
+                                : `Failed to download PDF from ${pdfUrl}: ${downloadError.message}`,
+                            errorCode: downloadError.statusCode || null,
+                            severity: downloadError.statusCode === 403 ? 'critical' : 'error',
+                            context: {
+                                pdfUrl: pdfUrl,
+                                cennikName: cennikName
+                            }
+                        });
+                    }
+                    throw downloadError;
+                }
             } else {
                 console.log(`Using local PDF: ${localPdfPath}`);
                 pdfFilePath = localPdfPath;
             }
             
-            console.log(`\nStarting RAD section extraction...`);
+            console.log(`\nStarting section extraction...`);
             const extractionResult = await this.sectionExtractor.extractAllSectionsByHeader(pdfFilePath);
             
-            console.log(`\nRAD section extraction results:`);
+            console.log(`\nSection extraction results:`);
             console.log(`   Total sections: ${extractionResult.summary.totalSections}`);
             console.log(`   Successful extractions: ${extractionResult.summary.successfulExtractions}`);
             console.log(`   Failed extractions: ${extractionResult.summary.failedExtractions}`);
@@ -60,6 +82,7 @@ class RadPdfScraper {
             const sections = extractionResult.sections || {};
             const extractionInfo = extractionResult.extractionInfo || {};
             
+            // Create consolidated rawText from all sections (like Telekom)
             let consolidatedRawText = '';
             if (sections) {
                 Object.values(sections).forEach(section => {
@@ -70,7 +93,7 @@ class RadPdfScraper {
             }
             
             if (!consolidatedRawText || consolidatedRawText.trim().length === 0) {
-                console.error(`❌ No content extracted from RAD PDF. This may indicate a download failure or extraction error.`);
+                console.error(`❌ No content extracted from PDF. This may indicate a download failure or extraction error.`);
                 return {
                     success: false,
                     cennikName: cennikName,
@@ -83,7 +106,7 @@ class RadPdfScraper {
             const enrichedData = {
                 cennikName: cennikName,
                 pdfUrl: localPdfPath ? `LOCAL: ${localPdfPath}` : pdfUrl,
-                rawText: consolidatedRawText,
+                rawText: consolidatedRawText.trim(),
                 data: {
                     sections: sections,
                     summary: summary,
@@ -95,22 +118,22 @@ class RadPdfScraper {
                     successfulExtractions: summary.successfulExtractions,
                     failedExtractions: summary.failedExtractions,
                     totalCharacters: summary.totalCharacters,
-                    source: 'RAD PDF Section Extractor',
+                    source: 'Funfon PDF Section Extractor',
                     isLocalFile: !!localPdfPath,
                     originalUrl: pdfUrl,
-                    extractionMethod: 'rad-section-based'
+                    extractionMethod: 'section-based'
                 }
             };
 
-            console.log(`\n🔍 Validating extracted RAD data...`);
-            const validationResult = this.dataValidator.validateExtractedData(enrichedData, 'rad');
+            console.log(`\n🔍 Validating extracted Funfon data...`);
+            const validationResult = this.dataValidator.validateExtractedData(enrichedData, 'funfon');
             console.log(this.dataValidator.getValidationSummary(validationResult));
             
             // Record validation warnings in ErrorMonitor
             if (this.errorMonitor && validationResult.warnings.length > 0) {
                 validationResult.warnings.forEach(warning => {
                     this.errorMonitor.recordWarning({
-                        provider: 'RAD',
+                        provider: 'Funfon',
                         operation: 'data-validation',
                         message: warning,
                         context: {
@@ -126,7 +149,7 @@ class RadPdfScraper {
             if (this.errorMonitor && validationResult.errors.length > 0) {
                 validationResult.errors.forEach(error => {
                     this.errorMonitor.recordError({
-                        provider: 'RAD',
+                        provider: 'Funfon',
                         operation: 'data-validation',
                         type: 'VALIDATION_ERROR',
                         message: error,
@@ -159,61 +182,31 @@ class RadPdfScraper {
                     timestamp: new Date().toISOString()
                 };
             }
-            
+
             let storageInfo = null;
             if (!skipStorage) {
-                storageInfo = await this.dataStorage.saveToDataset([enrichedData], `rad-section-extraction-${Date.now()}`, 'rad');
+                storageInfo = await this.dataStorage.saveToDataset([enrichedData], `funfon-section-extraction-${Date.now()}`, 'funfon');
             }
-            
-            if (!localPdfPath && pdfFilePath) {
-                const fs = require('fs');
-                try {
-                    fs.unlinkSync(pdfFilePath);
-                    console.log(`Cleaned up temp file: ${pdfFilePath}`);
-                } catch (err) {
-                    console.warn(`⚠️  Could not delete temp file: ${err.message}`);
-                }
-            }
-            
-            if (skipStorage) {
-                return {
-                    success: true,
-                    cennikName: cennikName,
-                    pdfUrl: pdfUrl,
-                    rawText: consolidatedRawText, // Add rawText for crawler compatibility
-                    data: enrichedData.data,
-                    summary: enrichedData.data.summary,
-                    extractionInfo: enrichedData.data.extractionInfo,
-                    metadata: enrichedData.metadata,
-                    timestamp: new Date().toISOString()
-                };
-            } else {
-                return {
-                    success: true,
-                    cennikName: cennikName,
-                    pdfUrl: pdfUrl,
-                    totalSections: extractionResult.summary.totalSections,
-                    successfulExtractions: extractionResult.summary.successfulExtractions,
-                    failedExtractions: extractionResult.summary.failedExtractions,
-                    totalCharacters: extractionResult.summary.totalCharacters,
-                    storage: storageInfo,
-                    timestamp: new Date().toISOString()
-                };
-            }
-            
+
+            return {
+                success: true,
+                cennikName: cennikName,
+                pdfUrl: pdfUrl,
+                totalSections: extractionResult.summary.totalSections,
+                successfulExtractions: extractionResult.summary.successfulExtractions,
+                failedExtractions: extractionResult.summary.failedExtractions,
+                totalCharacters: extractionResult.summary.totalCharacters,
+                storage: storageInfo,
+                timestamp: new Date().toISOString(),
+                data: enrichedData.data,
+                summary: enrichedData.data.summary,
+                extractionInfo: enrichedData.data.extractionInfo,
+                rawText: enrichedData.rawText, // Include rawText for consolidated processing
+                metadata: enrichedData.metadata // Include metadata for validation
+            };
+
         } catch (error) {
-            console.error(`❌ Error in RAD PDF section scraping: ${error.message}`);
-            
-            if (!localPdfPath && pdfFilePath) {
-                const fs = require('fs');
-                try {
-                    fs.unlinkSync(pdfFilePath);
-                    console.log(`Cleaned up temp file: ${pdfFilePath}`);
-                } catch (err) {
-                    console.warn(`⚠️  Could not delete temp file: ${err.message}`);
-                }
-            }
-            
+            console.error(`❌ Error in Funfon PDF section-based scraping: ${error.message}`);
             return {
                 success: false,
                 error: error.message,
@@ -221,6 +214,16 @@ class RadPdfScraper {
                 pdfUrl: pdfUrl,
                 timestamp: new Date().toISOString()
             };
+        } finally {
+            if (!localPdfPath && pdfFilePath) {
+                const fs = require('fs');
+                try {
+                    fs.unlinkSync(pdfFilePath);
+                    console.log(`Cleaned up temp file: ${pdfFilePath}`);
+                } catch (err) {
+                    console.warn(`⚠️  Could not delete temp file: ${err.message}`);
+                }
+            }
         }
     }
 
@@ -232,4 +235,4 @@ class RadPdfScraper {
     }
 }
 
-module.exports = RadPdfScraper;
+module.exports = FunfonPdfScraper;

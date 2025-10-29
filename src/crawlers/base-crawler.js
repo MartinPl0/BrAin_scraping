@@ -1,6 +1,5 @@
 const puppeteer = require('puppeteer');
 const cheerio = require('cheerio');
-const ErrorHandler = require('../utils/error-handler');
 const DynamicWaiter = require('../utils/dynamic-waiter');
 
 /**
@@ -13,7 +12,7 @@ class BaseCrawler {
         this.config = config;
         this.browser = null;
         this.page = null;
-        this.errorHandler = new ErrorHandler();
+        this.errorMonitor = null; // Will be set by crawler manager
         this.dynamicWaiter = new DynamicWaiter();
     }
 
@@ -423,8 +422,13 @@ class BaseCrawler {
             return result;
             
         } catch (error) {
-            const errorResult = this.errorHandler.handleError(error, 'base-crawl', this.providerName);
-            throw errorResult.error;
+            if (this.errorMonitor) {
+                const errorResult = this.errorMonitor.handleError(error, 'base-crawl', this.providerName);
+                throw errorResult.error;
+            } else {
+                console.error(`❌ [${this.providerName}] base-crawl: ${error.message}`);
+                throw error;
+            }
         } finally {
             if (this.browser) {
                 await this.cleanup();

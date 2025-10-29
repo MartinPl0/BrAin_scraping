@@ -4,6 +4,8 @@ const O2PdfScraper = require('./scrapers/o2-pdf-scraper');
 const TelekomPdfScraper = require('./scrapers/telekom-pdf-scraper');
 const OrangePdfScraper = require('./scrapers/orange-pdf-scraper');
 const RadPdfScraper = require('./scrapers/rad-pdf-scraper');
+const ErrorMonitor = require('./utils/error-monitor');
+const EmailNotifier = require('./notifications/email-notifier');
 
 /**
  * Main class for BrAIn PDF Scraper System
@@ -12,6 +14,9 @@ const RadPdfScraper = require('./scrapers/rad-pdf-scraper');
 class BrainScraper {
     constructor() {
         this.dataStorage = new DataStorage();
+        this.errorMonitor = new ErrorMonitor();
+        this.config = null;
+        this.emailNotifier = null;
     }
 
     /**
@@ -19,7 +24,7 @@ class BrainScraper {
      * @param {string} localPdfPath - Optional local PDF path for testing (Phase 2)
      * @returns {Promise<Array>} Results from all O2 price lists
      */
-    async runO2Scraper(localPdfPath = null) {
+    async runO2Scraper(localPdfPath = null, errorMonitor = null) {
         try {
             console.log(`=== 🚀 Starting O2 PDF scraping ===`);
             
@@ -32,7 +37,7 @@ class BrainScraper {
             
             if (localPdfPath) {
                 console.log(`📄 Using local PDF: ${localPdfPath}`);
-                const o2Scraper = new O2PdfScraper();
+                const o2Scraper = new O2PdfScraper(errorMonitor);
                 const results = await o2Scraper.scrapePdf(o2Config.pdfUrl, o2Config.displayName, localPdfPath);
                 return [results];
             }
@@ -40,10 +45,11 @@ class BrainScraper {
             console.log('🔄 Using dynamic PDF discovery with change detection...');
             const CrawlerManager = require('./crawlers/crawler-manager');
             const crawlerManager = new CrawlerManager();
+            crawlerManager.errorMonitor = errorMonitor; // Pass error monitor to crawler manager
             
             crawlerManager.initializeCrawlers(config);
             
-            const crawlResults = await crawlerManager.runProviderWithChangeDetection('rad');
+            const crawlResults = await crawlerManager.runProviderWithChangeDetection('o2');
             
             if (crawlResults.efficiencyGained && crawlResults.skippedCrawls > 0) {
                 console.log(`🎉 Efficiency gained! Skipped ${crawlResults.skippedCrawls} unchanged providers`);
@@ -77,7 +83,7 @@ class BrainScraper {
      * @param {string} localPdfPath - Optional local PDF path for testing
      * @returns {Promise<Array>} Results from all Telekom price lists
      */
-    async runTelekomScraper(localPdfPath = null) {
+    async runTelekomScraper(localPdfPath = null, errorMonitor = null) {
         try {
             console.log(`=== 🚀 Starting Telekom PDF scraping ===`);
             
@@ -90,7 +96,7 @@ class BrainScraper {
             
             if (localPdfPath) {
                 console.log(`📄 Using local PDF: ${localPdfPath}`);
-                const telekomScraper = new TelekomPdfScraper();
+                const telekomScraper = new TelekomPdfScraper(errorMonitor);
                 const results = await telekomScraper.scrapePdf(telekomConfig.pdfUrl, telekomConfig.displayName, localPdfPath);
                 return [results];
             }
@@ -98,6 +104,7 @@ class BrainScraper {
             console.log('🔄 Using dynamic PDF discovery with change detection...');
             const CrawlerManager = require('./crawlers/crawler-manager');
             const crawlerManager = new CrawlerManager();
+            crawlerManager.errorMonitor = errorMonitor; // Pass error monitor to crawler manager
             
             crawlerManager.initializeCrawlers(config);
             
@@ -141,7 +148,7 @@ class BrainScraper {
      * @param {string} localPdfPath - Optional local PDF path for testing
      * @returns {Promise<Array>} Results from RAD price list
      */
-    async runRadScraper(localPdfPath = null) {
+    async runRadScraper(localPdfPath = null, errorMonitor = null) {
         try {
             console.log(`=== 🚀 Starting RAD PDF scraping ===`);
             
@@ -154,7 +161,7 @@ class BrainScraper {
             
             if (localPdfPath) {
                 console.log(`📄 Using local PDF: ${localPdfPath}`);
-                const radScraper = new RadPdfScraper();
+                const radScraper = new RadPdfScraper(errorMonitor);
                 const results = await radScraper.scrapePdf(radConfig.pdfUrl, radConfig.displayName, localPdfPath);
                 return [results];
             }
@@ -162,6 +169,7 @@ class BrainScraper {
             console.log('🔄 Using dynamic PDF discovery with change detection...');
             const CrawlerManager = require('./crawlers/crawler-manager');
             const crawlerManager = new CrawlerManager();
+            crawlerManager.errorMonitor = errorMonitor; // Pass error monitor to crawler manager
             
             crawlerManager.initializeCrawlers(config);
             
@@ -188,7 +196,7 @@ class BrainScraper {
             }
             
             // Now scrape the discovered PDF
-            const radScraper = new RadPdfScraper();
+            const radScraper = new RadPdfScraper(errorMonitor);
             const results = await radScraper.scrapePdf(radPdf.pdfUrl, radConfig.displayName);
             
             console.log('=== 🚀 RAD PDF scraping complete ===');
@@ -205,7 +213,7 @@ class BrainScraper {
      * @param {string} localPdfPath - Optional local PDF path for testing
      * @returns {Promise<Array>} Results from all Orange price lists
      */
-    async runOrangeScraper(localPdfPath = null) {
+    async runOrangeScraper(localPdfPath = null, errorMonitor = null) {
         try {
             console.log(`=== 🚀 Starting Orange PDF scraping ===`);
             
@@ -218,7 +226,7 @@ class BrainScraper {
             
             if (localPdfPath) {
                 console.log(`📄 Using local PDF: ${localPdfPath}`);
-                const orangeScraper = new OrangePdfScraper();
+                const orangeScraper = new OrangePdfScraper(errorMonitor);
                 const results = await orangeScraper.scrapePdf(orangeConfig.pdfUrl, orangeConfig.displayName, localPdfPath);
                 return [results];
             }
@@ -227,6 +235,7 @@ class BrainScraper {
             console.log('🔄 Using dynamic PDF discovery for Orange only...');
             const CrawlerManager = require('./crawlers/crawler-manager');
             const crawlerManager = new CrawlerManager();
+            crawlerManager.errorMonitor = errorMonitor; // Pass error monitor to crawler manager
             
             crawlerManager.initializeCrawlers(config);
             
@@ -265,7 +274,7 @@ class BrainScraper {
      * @param {string} localPdfPath - Optional local PDF path for testing
      * @returns {Promise<Array>} Results from all Tesco Mobile price lists
      */
-    async runTescoScraper(localPdfPath = null) {
+    async runTescoScraper(localPdfPath = null, errorMonitor = null) {
         try {
             console.log(`=== 🚀 Starting Tesco Mobile PDF scraping ===`);
             
@@ -279,7 +288,7 @@ class BrainScraper {
             if (localPdfPath) {
                 console.log(`📄 Using local PDF: ${localPdfPath}`);
                 const TescoPdfScraper = require('./scrapers/tesco-pdf-scraper');
-                const tescoScraper = new TescoPdfScraper();
+                const tescoScraper = new TescoPdfScraper(errorMonitor);
                 const results = await tescoScraper.scrapePdf(tescoConfig.pdfUrl, tescoConfig.displayName, localPdfPath);
                 return [results];
             }
@@ -288,6 +297,7 @@ class BrainScraper {
             console.log('🔄 Using dynamic PDF discovery for Tesco Mobile only...');
             const CrawlerManager = require('./crawlers/crawler-manager');
             const crawlerManager = new CrawlerManager();
+            crawlerManager.errorMonitor = errorMonitor; // Pass error monitor to crawler manager
             
             crawlerManager.initializeCrawlers(config);
             
@@ -330,9 +340,10 @@ class BrainScraper {
     /**
      * Run 4ka PDF scraping for all 4ka price lists
      * @param {string} localPdfPath - Optional local PDF path for testing
+     * @param {Object} errorMonitor - ErrorMonitor instance for tracking warnings
      * @returns {Promise<Array>} Results from all 4ka price lists
      */
-    async runFourKaScraper(localPdfPath = null) {
+    async runFourKaScraper(localPdfPath = null, errorMonitor = null) {
         try {
             console.log(`=== 🚀 Starting 4ka PDF scraping ===`);
             
@@ -354,6 +365,7 @@ class BrainScraper {
             console.log('🔄 Using dynamic PDF discovery with change detection...');
             const CrawlerManager = require('./crawlers/crawler-manager');
             const crawlerManager = new CrawlerManager();
+            crawlerManager.errorMonitor = errorMonitor; // Pass error monitor to crawler manager
             
             crawlerManager.initializeCrawlers(config);
             
@@ -372,7 +384,8 @@ class BrainScraper {
                 
                 if (fs.existsSync(existingDataPath)) {
                     const existingData = JSON.parse(fs.readFileSync(existingDataPath, 'utf8'));
-                    return [existingData];
+                    // Return individual PDFs from existing data, not the full dataset
+                    return existingData.pdfs || [];
                 } else {
                     throw new Error('No changes detected and no existing data found');
                 }
@@ -407,7 +420,7 @@ class BrainScraper {
      * @param {string} localPdfPath - Optional local PDF path for testing
      * @returns {Promise<Array>} Results from all Okay fón price lists
      */
-    async runOkayfonScraper(localPdfPath = null) {
+    async runOkayfonScraper(localPdfPath = null, errorMonitor = null) {
         try {
             console.log(`=== 🚀 Starting Okay fón PDF scraping ===`);
             
@@ -429,6 +442,7 @@ class BrainScraper {
             console.log('🔄 Using dynamic PDF discovery with change detection...');
             const CrawlerManager = require('./crawlers/crawler-manager');
             const crawlerManager = new CrawlerManager();
+            crawlerManager.errorMonitor = errorMonitor; // Pass error monitor to crawler manager
             
             crawlerManager.initializeCrawlers(config);
             
@@ -447,7 +461,8 @@ class BrainScraper {
                 
                 if (fs.existsSync(existingDataPath)) {
                     const existingData = JSON.parse(fs.readFileSync(existingDataPath, 'utf8'));
-                    return [existingData];
+                    // Return individual PDFs from existing data, not the full dataset
+                    return existingData.pdfs || [];
                 } else {
                     throw new Error('No changes detected and no existing data found');
                 }
@@ -477,66 +492,157 @@ class BrainScraper {
         }
     }
 
+
     /**
-     * Run RAD PDF scraping for all RAD price lists
+     * Run Juro PDF scraping for Juro price lists
      * @param {string} localPdfPath - Optional local PDF path for testing
-     * @returns {Promise<Array>} Results from all RAD price lists
+     * @returns {Promise<Array>} Results from Juro price lists
      */
-    async runRadScraper(localPdfPath = null) {
+    async runJuroScraper(localPdfPath = null, errorMonitor = null) {
         try {
-            console.log(`=== 🚀 Starting RAD PDF scraping ===`);
+            console.log(`=== 🚀 Starting Juro PDF scraping ===`);
             
             const config = loadConfig();
-            const radConfig = config.providers.rad;
+            const juroConfig = config.providers.juro;
             
-            if (!radConfig) {
-                throw new Error('RAD configuration not found');
+            if (!juroConfig) {
+                throw new Error('Juro configuration not found');
             }
             
             if (localPdfPath) {
                 console.log(`📄 Using local PDF: ${localPdfPath}`);
-                const radScraper = new RadPdfScraper();
-                const results = await radScraper.scrapePdf(radConfig.pdfUrl, radConfig.displayName, localPdfPath);
+                const JuroPdfScraper = require('./scrapers/juro-pdf-scraper');
+                const juroScraper = new JuroPdfScraper();
+                const results = await juroScraper.scrapePdf(juroConfig.pdfUrl, juroConfig.displayName, localPdfPath);
                 return [results];
             }
             
             console.log('🔄 Using dynamic PDF discovery with change detection...');
             const CrawlerManager = require('./crawlers/crawler-manager');
             const crawlerManager = new CrawlerManager();
+            crawlerManager.errorMonitor = errorMonitor; // Pass error monitor to crawler manager
             
             crawlerManager.initializeCrawlers(config);
             
-            const crawlResults = await crawlerManager.runProviderWithChangeDetection('rad');
+            const crawlResults = await crawlerManager.runProviderWithChangeDetection('juro');
             
             if (crawlResults.efficiencyGained && crawlResults.skippedCrawls > 0) {
                 console.log(`🎉 Efficiency gained! Skipped ${crawlResults.skippedCrawls} unchanged providers`);
             }
             
-            if (crawlResults.results.length === 0) {
-                console.log('🎉 No changes detected for RAD! No PDF processing needed.');
-                return [];
+            // If no changes detected, return existing data
+            if (crawlResults.efficiencyGained && crawlResults.results.length === 0) {
+                console.log('📄 No changes detected, returning existing data...');
+                const fs = require('fs');
+                const path = require('path');
+                const existingDataPath = path.join(__dirname, '..', 'storage', 'datasets', 'juro', 'juro.json');
+                
+                if (fs.existsSync(existingDataPath)) {
+                    const existingData = JSON.parse(fs.readFileSync(existingDataPath, 'utf8'));
+                    // Return individual PDFs from existing data, not the full dataset
+                    return existingData.pdfs || [];
+                } else {
+                    throw new Error('No changes detected and no existing data found');
+                }
             }
             
-            const radResult = crawlResults.results.find(r => r.provider === 'rad');
-            if (!radResult || !radResult.result) {
-                throw new Error(`RAD crawl failed: No crawl result found`);
+            const juroResult = crawlResults.results.find(r => r.provider === 'juro');
+            if (!juroResult) {
+                throw new Error(`Juro crawl failed: No crawl result found`);
             }
             
-            // RAD crawler returns structure with pdfs array, not single pdfUrl
-            const radPdf = radResult.result.pdfs && radResult.result.pdfs[0];
-            if (!radPdf || !radPdf.pdfUrl) {
-                throw new Error(`RAD crawl failed: No PDF URL found`);
+            // Juro crawler returns structure with pdfs array nested under result
+            const juroPdfs = juroResult.result.pdfs && juroResult.result.pdfs;
+            if (!juroPdfs || juroPdfs.length === 0) {
+                throw new Error(`Juro crawl failed: No PDF URLs found`);
             }
             
-            // Now scrape the discovered PDF
-            const radScraper = new RadPdfScraper();
-            const results = await radScraper.scrapePdf(radPdf.pdfUrl, radConfig.displayName);
+            // The crawler already processed the PDF, so we can return the consolidated result
+            return [juroResult.result];
             
-            console.log('=== 🚀 RAD PDF scraping complete ===');
+        } catch (error) {
+            console.error(`Error in Juro PDF scraping:`, error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * Run Funfon PDF scraping
+     * @param {string} localPdfPath - Optional local PDF path for testing
+     * @returns {Promise<Array>} Results from Funfon scraping
+     */
+    async runFunfonScraper(localPdfPath = null, errorMonitor = null) {
+        try {
+            console.log(`=== 🚀 Starting Funfon PDF scraping ===`);
+            
+            const config = loadConfig();
+            const funfonConfig = config.providers.funfon;
+            
+            if (!funfonConfig) {
+                // If no config, create a default one for testing
+                console.log('⚠️  Funfon configuration not found, using defaults for testing');
+            }
+            
+            const displayName = funfonConfig?.displayName || 'Funfon Cenník služieb';
+            const pdfUrl = funfonConfig?.pdfUrl || 'LOCAL_TEST';
+            
+            if (localPdfPath) {
+                console.log(`📄 Using local PDF: ${localPdfPath}`);
+                const FunfonPdfScraper = require('./scrapers/funfon-pdf-scraper');
+                const funfonScraper = new FunfonPdfScraper(errorMonitor);
+                const results = await funfonScraper.scrapePdf(pdfUrl, displayName, localPdfPath);
+                return [results];
+            }
+            
+            console.log('🔄 Using dynamic PDF discovery with change detection...');
+            const CrawlerManager = require('./crawlers/crawler-manager');
+            const crawlerManager = new CrawlerManager();
+            crawlerManager.errorMonitor = errorMonitor; // Pass error monitor to crawler manager
+            
+            crawlerManager.initializeCrawlers(config);
+            
+            const crawlResults = await crawlerManager.runProviderWithChangeDetection('funfon');
+            
+            if (crawlResults.efficiencyGained && crawlResults.skippedCrawls > 0) {
+                console.log(`🎉 Efficiency gained! Skipped ${crawlResults.skippedCrawls} unchanged providers`);
+            }
+            
+            // If no changes detected, return existing data
+            if (crawlResults.efficiencyGained && crawlResults.results.length === 0) {
+                console.log('📄 No changes detected, returning existing data...');
+                const fs = require('fs');
+                const path = require('path');
+                const existingDataPath = path.join(__dirname, '..', 'storage', 'datasets', 'funfon', 'funfon.json');
+                
+                if (fs.existsSync(existingDataPath)) {
+                    const existingData = JSON.parse(fs.readFileSync(existingDataPath, 'utf8'));
+                    // Return individual PDFs from existing data, not the full dataset
+                    return existingData.pdfs || [];
+                } else {
+                    throw new Error('No changes detected and no existing data found');
+                }
+            }
+            
+            const funfonResult = crawlResults.results.find(r => r.provider === 'funfon');
+            if (!funfonResult) {
+                throw new Error(`Funfon crawl failed: No crawl result found`);
+            }
+            
+            // Funfon crawler returns structure with pdfs array nested under result
+            const funfonPdfs = funfonResult.result.pdfs && funfonResult.result.pdfs;
+            if (!funfonPdfs || funfonPdfs.length === 0) {
+                throw new Error(`Funfon crawl failed: No PDF URLs found`);
+            }
+            
+            // Now scrape the discovered PDFs
+            const FunfonPdfScraper = require('./scrapers/funfon-pdf-scraper');
+            const funfonScraper = new FunfonPdfScraper(errorMonitor);
+            const results = await funfonScraper.scrapePdf(funfonPdfs[0].pdfUrl, funfonConfig.displayName);
+            
             return [results];
             
         } catch (error) {
-            console.error(`Error in RAD PDF scraping:`, error.message);
+            console.error(`Error in Funfon PDF scraping:`, error.message);
             throw error;
         }
     }
@@ -563,6 +669,8 @@ node src/main.js tesco            - Run Tesco Mobile Slovakia scraper
 node src/main.js fourka           - Run 4ka Slovakia scraper
 node src/main.js rad              - Run RAD Slovakia scraper
 node src/main.js okayfon          - Run Okay fón Slovakia scraper
+node src/main.js juro             - Run Juro Slovakia scraper
+node src/main.js funfon <pdf>     - Run Funfon Slovakia scraper (requires PDF path)
 
 📖 Documentation:
 - SYSTEM_OVERVIEW.md - Complete system documentation
@@ -576,16 +684,83 @@ node src/main.js tesco            # Run Tesco Mobile scraper
 node src/main.js fourka           # Run 4ka scraper
 node src/main.js rad              # Run RAD scraper
 node src/main.js okayfon          # Run Okay fón scraper
+node src/main.js juro             # Run Juro scraper
+node src/main.js funfon pdf.pdf   # Run Funfon scraper with local PDF
 node src/main.js --all            # Run all providers with change detection
 node src/main.js --changes        # Show change detection status
 node src/main.js --sections      # Show configurable sections
     `);
 }
 
+/**
+ * Setup global error handlers
+ */
+function setupGlobalErrorHandlers(errorMonitor, emailNotifier, config) {
+    // Handle unhandled promise rejections
+    process.on('unhandledRejection', (reason, promise) => {
+        console.error('🚨 Unhandled Promise Rejection:', reason);
+        const error = {
+            provider: 'System',
+            operation: 'UnhandledRejection',
+            type: 'SYSTEM_ERROR',
+            message: reason?.message || String(reason),
+            stack: reason?.stack,
+            severity: 'critical',
+            context: { promise: String(promise) }
+        };
+        errorMonitor.recordError(error);
+    });
+
+    // Handle uncaught exceptions
+    process.on('uncaughtException', (error) => {
+        console.error('🚨 Uncaught Exception:', error);
+        const errorInfo = {
+            provider: 'System',
+            operation: 'UncaughtException',
+            type: 'SYSTEM_ERROR',
+            message: error.message,
+            stack: error.stack,
+            severity: 'critical'
+        };
+        errorMonitor.recordError(errorInfo);
+        
+        // Try to send email notification before exit
+        if (emailNotifier && emailNotifier.transporter) {
+            emailNotifier.sendFailureNotification(errorInfo).catch(err => {
+                console.error('Failed to send error email:', err);
+            });
+        }
+        
+        // Exit gracefully after a short delay
+        setTimeout(() => {
+            process.exit(1);
+        }, 1000);
+    });
+
+    console.log('✅ Global error handlers registered');
+}
+
 // Main function
 async function main() {
+    const errorMonitor = new ErrorMonitor();
+    errorMonitor.start();
+    
+    let emailNotifier = null;
+    let config = null;
+    
+    try {
+        config = loadConfig();
+        emailNotifier = new EmailNotifier(config);
+        setupGlobalErrorHandlers(errorMonitor, emailNotifier, config);
+    } catch (error) {
+        console.warn('⚠️  Failed to setup error monitoring:', error.message);
+    }
+    
     try {
         const scraper = new BrainScraper();
+        scraper.errorMonitor = errorMonitor;
+        scraper.emailNotifier = emailNotifier;
+        scraper.config = config;
         
         const args = process.argv.slice(2);
         const scraperName = args[0];
@@ -669,6 +844,7 @@ async function main() {
                 console.log('\n=== 🚀 Running All Providers with Change Detection ===');
                 const CrawlerManager = require('./crawlers/crawler-manager');
                 const crawlerManager = new CrawlerManager();
+                crawlerManager.errorMonitor = errorMonitor; // Pass error monitor to crawler manager
                 
                 const config = loadConfig();
                 crawlerManager.initializeCrawlers(config);
@@ -717,6 +893,65 @@ async function main() {
                 
                 await crawlerManager.cleanup();
                 
+                // Record successful monitoring session if no errors
+                if (errorMonitor && (!crawlResults.errors || crawlResults.errors.length === 0)) {
+                    const totalProcessed = crawlResults.results ? crawlResults.results.length : 0;
+                    const totalChecked = crawlResults.totalCrawlers || 0;
+                    errorMonitor.recordSuccess({
+                        provider: 'All Providers',
+                        operation: 'monitoring-session',
+                        message: `Successfully completed monitoring session - ${totalProcessed} provider(s) processed, ${totalChecked} provider(s) checked`,
+                        providersProcessed: totalProcessed,
+                        providersChecked: totalChecked,
+                        skippedProviders: crawlResults.skippedCrawls || 0
+                    });
+                }
+                
+                // Generate error summary
+                const errorSummary = errorMonitor.end();
+                
+                // Display monitoring session summary
+                console.log(`\n📊 Monitoring session ended: ${errorSummary.totalErrors} errors, ${errorSummary.totalWarnings} warnings, ${errorSummary.totalSuccesses} successes`);
+                
+                // Send email notification if configured (send if there are errors, warnings, OR successes)
+                if (emailNotifier && emailNotifier.transporter && 
+                    (errorSummary.totalErrors > 0 || errorSummary.totalWarnings > 0 || errorSummary.totalSuccesses > 0)) {
+                    try {
+                        console.log('\n📧 Sending monitoring summary email...');
+                        await emailNotifier.sendErrorSummary(errorSummary);
+                        console.log('✅ Monitoring summary email sent');
+                    } catch (emailError) {
+                        console.error('❌ Failed to send monitoring summary email:', emailError.message);
+                        errorMonitor.recordError({
+                            provider: 'System',
+                            operation: 'EmailNotification',
+                            type: 'NOTIFICATION_ERROR',
+                            message: emailError.message,
+                            severity: 'warning'
+                        });
+                    }
+                } else if (errorSummary.totalErrors > 0 || errorSummary.totalWarnings > 0) {
+                    console.log('⚠️  Email notifications not configured - errors not reported via email');
+                }
+                
+                // Display error summary
+                if (errorSummary.totalErrors > 0) {
+                    console.log(`\n📊 Error Summary:`);
+                    console.log(`   Total Errors: ${errorSummary.totalErrors}`);
+                    console.log(`   Total Warnings: ${errorSummary.totalWarnings}`);
+                    console.log(`   Critical Errors: ${errorSummary.criticalErrors.length}`);
+                    if (errorSummary.errorsByProvider) {
+                        console.log(`\n   Errors by Provider:`);
+                        Object.entries(errorSummary.errorsByProvider).forEach(([provider, errors]) => {
+                            const http403 = errors.filter(e => e.errorCode === 403);
+                            console.log(`     ${provider}: ${errors.length} error(s)`);
+                            if (http403.length > 0) {
+                                console.log(`       ⚠️  HTTP 403 (Blocked): ${http403.length}`);
+                            }
+                        });
+                    }
+                }
+                
                 if (crawlResults.failedCrawls > 0) {
                     console.log(`\n❌ ${crawlResults.failedCrawls} provider(s) failed! Check the logs above for details.`);
                     process.exit(1);
@@ -731,7 +966,14 @@ async function main() {
             if (localPdfPath) {
                 console.log(`📄 Using local PDF: ${localPdfPath}`);
             }
-            const results = await scraper.runO2Scraper(localPdfPath);
+            const results = await scraper.runO2Scraper(localPdfPath, errorMonitor);
+            
+            // Display ErrorMonitor summary 
+            if (errorMonitor) {
+                const errorSummary = errorMonitor.end();
+                console.log(`\n📊 Monitoring session ended: ${errorSummary.totalErrors} errors, ${errorSummary.totalWarnings} warnings, ${errorSummary.totalSuccesses} successes`);
+            }
+            
             console.log('\n=== 🚀 O2 Scraping Results ===');
             results.forEach(result => {
                 if (result.success) {
@@ -748,7 +990,14 @@ async function main() {
             if (localPdfPath) {
                 console.log(`📄 Using local PDF: ${localPdfPath}`);
             }
-            const results = await scraper.runTelekomScraper(localPdfPath);
+            const results = await scraper.runTelekomScraper(localPdfPath, errorMonitor);
+            
+            // Display ErrorMonitor summary 
+            if (errorMonitor) {
+                const errorSummary = errorMonitor.end();
+                console.log(`\n📊 Monitoring session ended: ${errorSummary.totalErrors} errors, ${errorSummary.totalWarnings} warnings, ${errorSummary.totalSuccesses} successes`);
+            }
+            
             console.log('\n=== 🚀 Telekom Scraping Results ===');
             results.forEach(result => {
                 if (result.success) {
@@ -760,12 +1009,52 @@ async function main() {
             process.exit(0);
         }
         
+        if (scraperName === 'orange') {
+            const localPdfPath = args[1]; // Optional: path to local PDF
+            if (localPdfPath) {
+                console.log(`📄 Using local PDF: ${localPdfPath}`);
+            }
+            const results = await scraper.runOrangeScraper(localPdfPath, errorMonitor);
+            
+            // Display ErrorMonitor summary 
+            if (errorMonitor) {
+                const errorSummary = errorMonitor.end();
+                console.log(`\n📊 Monitoring session ended: ${errorSummary.totalErrors} errors, ${errorSummary.totalWarnings} warnings, ${errorSummary.totalSuccesses} successes`);
+            }
+            
+            console.log('\n=== 🚀 Orange Scraping Results ===');
+            if (results[0] && results[0].pdfs) {
+                const consolidated = results[0];
+                console.log(`📊 Summary: ${consolidated.totalPdfs} total PDFs, ${consolidated.successfulPdfs} successful, ${consolidated.failedPdfs} failed`);
+                
+                consolidated.pdfs.forEach(pdf => {
+                    if (pdf.error) {
+                        console.log(`❌ ${pdf.cennikName}: ${pdf.error}`);
+                    } else if (pdf.summary) {
+                        console.log(`✅ ${pdf.cennikName}: ${pdf.summary.totalSections} sections, ${pdf.summary.successfulExtractions} successful extractions, ${pdf.summary.totalCharacters} characters`);
+                    } else {
+                        console.log(`✅ ${pdf.cennikName}: Successfully processed`);
+                    }
+                });
+            } else {
+                console.log('❌ No consolidated results found');
+            }
+            process.exit(0);
+        }
+        
         if (scraperName === 'rad') {
             const localPdfPath = args[1]; // Optional: path to local PDF
             if (localPdfPath) {
                 console.log(`📄 Using local PDF: ${localPdfPath}`);
             }
-            const results = await scraper.runRadScraper(localPdfPath);
+            const results = await scraper.runRadScraper(localPdfPath, errorMonitor);
+            
+            // Display ErrorMonitor summary 
+            if (errorMonitor) {
+                const errorSummary = errorMonitor.end();
+                console.log(`\n📊 Monitoring session ended: ${errorSummary.totalErrors} errors, ${errorSummary.totalWarnings} warnings, ${errorSummary.totalSuccesses} successes`);
+            }
+            
             console.log('\n=== 🚀 RAD Scraping Results ===');
             results.forEach(result => {
                 if (result.success) {
@@ -782,7 +1071,14 @@ async function main() {
             if (localPdfPath) {
                 console.log(`📄 Using local PDF: ${localPdfPath}`);
             }
-            const results = await scraper.runTescoScraper(localPdfPath);
+            const results = await scraper.runTescoScraper(localPdfPath, errorMonitor);
+            
+            // Display ErrorMonitor summary 
+            if (errorMonitor) {
+                const errorSummary = errorMonitor.end();
+                console.log(`\n📊 Monitoring session ended: ${errorSummary.totalErrors} errors, ${errorSummary.totalWarnings} warnings, ${errorSummary.totalSuccesses} successes`);
+            }
+            
             console.log('\n=== 🚀 Tesco Mobile Consolidated Results ===');
             if (results[0] && results[0].pdfs) {
                 const consolidated = results[0];
@@ -808,7 +1104,14 @@ async function main() {
             if (localPdfPath) {
                 console.log(`📄 Using local PDF: ${localPdfPath}`);
             }
-            const results = await scraper.runFourKaScraper(localPdfPath);
+            const results = await scraper.runFourKaScraper(localPdfPath, errorMonitor);
+            
+            // Display ErrorMonitor summary
+            if (errorMonitor) {
+                const errorSummary = errorMonitor.end();
+                console.log(`\n📊 Monitoring session ended: ${errorSummary.totalErrors} errors, ${errorSummary.totalWarnings} warnings, ${errorSummary.totalSuccesses} successes`);
+            }
+            
             console.log('\n=== 🚀 4ka Consolidated Results ===');
             if (results[0] && results[0].pdfs) {
                 const consolidated = results[0];
@@ -834,8 +1137,90 @@ async function main() {
             if (localPdfPath) {
                 console.log(`📄 Using local PDF: ${localPdfPath}`);
             }
-            const results = await scraper.runOkayfonScraper(localPdfPath);
+            const results = await scraper.runOkayfonScraper(localPdfPath, errorMonitor);
+            
+            // Display ErrorMonitor summary
+            if (errorMonitor) {
+                const errorSummary = errorMonitor.end();
+                console.log(`\n📊 Monitoring session ended: ${errorSummary.totalErrors} errors, ${errorSummary.totalWarnings} warnings, ${errorSummary.totalSuccesses} successes`);
+            }
+            
             console.log('\n=== 🚀 Okay fón Scraping Results ===');
+            results.forEach(result => {
+                if (result.success || result.cennikName) {
+                    const summary = result.summary || result.data?.summary;
+                    if (summary) {
+                        console.log(`✅ ${result.cennikName}: ${summary.totalSections} sections, ${summary.successfulExtractions} successful extractions, ${summary.totalCharacters} characters`);
+                    } else {
+                        console.log(`✅ ${result.cennikName}: Data loaded from storage`);
+                    }
+                } else {
+                    console.log(`❌ ${result.cennikName || 'Unknown'}: ${result.error || 'Unknown error'}`);
+                }
+            });
+            process.exit(0);
+        }
+        
+        if (scraperName === 'juro') {
+            const localPdfPath = args[1]; // Optional: path to local PDF
+            if (localPdfPath) {
+                console.log(`📄 Using local PDF: ${localPdfPath}`);
+            }
+            const results = await scraper.runJuroScraper(localPdfPath, errorMonitor);
+            
+            // Display ErrorMonitor summary
+            if (errorMonitor) {
+                const errorSummary = errorMonitor.end();
+                console.log(`\n📊 Monitoring session ended: ${errorSummary.totalErrors} errors, ${errorSummary.totalWarnings} warnings, ${errorSummary.totalSuccesses} successes`);
+            }
+            
+            console.log('\n=== 🚀 Juro Scraping Results ===');
+            if (results[0] && results[0].pdfs) {
+                // Consolidated result format
+                const consolidated = results[0];
+                console.log(`📊 Summary: ${consolidated.totalPdfs} total PDFs, ${consolidated.successfulPdfs} successful, ${consolidated.failedPdfs} failed`);
+                
+                consolidated.pdfs.forEach(pdf => {
+                    if (pdf.error) {
+                        console.log(`❌ ${pdf.cennikName}: ${pdf.error}`);
+                    } else if (pdf.summary) {
+                        console.log(`✅ ${pdf.cennikName}: ${pdf.summary.totalSections} sections, ${pdf.summary.successfulExtractions} successful extractions, ${pdf.summary.totalCharacters} characters`);
+                    } else {
+                        console.log(`✅ ${pdf.cennikName}: Successfully processed`);
+                    }
+                });
+            } else {
+                // Direct result format
+                results.forEach(result => {
+                    if (result.success || result.cennikName) {
+                        const summary = result.summary || result.data?.summary;
+                        if (summary) {
+                            console.log(`✅ ${result.cennikName}: ${summary.totalSections} sections, ${summary.successfulExtractions} successful extractions, ${summary.totalCharacters} characters`);
+                        } else {
+                            console.log(`✅ ${result.cennikName}: Data loaded from storage`);
+                        }
+                    } else {
+                        console.log(`❌ ${result.cennikName || 'Unknown'}: ${result.error || 'Unknown error'}`);
+                    }
+                });
+            }
+            process.exit(0);
+        }
+        
+        if (scraperName === 'funfon') {
+            const localPdfPath = args[1]; // Optional: path to local PDF for testing
+            if (localPdfPath) {
+                console.log(`📄 Using local PDF: ${localPdfPath}`);
+            }
+            const results = await scraper.runFunfonScraper(localPdfPath, errorMonitor);
+            
+            // Display ErrorMonitor summary
+            if (errorMonitor) {
+                const errorSummary = errorMonitor.end();
+                console.log(`\n📊 Monitoring session ended: ${errorSummary.totalErrors} errors, ${errorSummary.totalWarnings} warnings, ${errorSummary.totalSuccesses} successes`);
+            }
+            
+            console.log('\n=== 🚀 Funfon Scraping Results ===');
             results.forEach(result => {
                 if (result.success || result.cennikName) {
                     const summary = result.summary || result.data?.summary;
@@ -856,7 +1241,7 @@ async function main() {
             if (localPdfPath) {
                 console.log(`📄 Using local PDF: ${localPdfPath}`);
             }
-            const results = await scraper.runRadScraper(localPdfPath);
+            const results = await scraper.runRadScraper(localPdfPath, errorMonitor);
             console.log('\n=== 🚀 RAD Scraping Results ===');
             results.forEach(result => {
                 if (result.success) {
@@ -869,7 +1254,7 @@ async function main() {
         }
         
         if (scraperName) {
-            console.log(`❌ Scraper '${scraperName}' not supported. Available: o2, telekom, orange, tesco, fourka, rad`);
+            console.log(`❌ Scraper '${scraperName}' not supported. Available: o2, telekom, orange, tesco, fourka, rad, okayfon, juro, funfon`);
             process.exit(1);
         } else {
             showHelp();
@@ -878,6 +1263,29 @@ async function main() {
         
     } catch (error) {
         console.error('Error in main function:', error.message);
+        
+        // Record the error
+        if (errorMonitor) {
+            errorMonitor.recordError({
+                provider: 'System',
+                operation: 'MainFunction',
+                type: 'SYSTEM_ERROR',
+                message: error.message,
+                stack: error.stack,
+                severity: 'critical'
+            });
+            
+            // Send error email if configured
+            const errorSummary = errorMonitor.end();
+            if (emailNotifier && emailNotifier.transporter) {
+                try {
+                    await emailNotifier.sendErrorSummary(errorSummary);
+                } catch (emailError) {
+                    console.error('Failed to send error email:', emailError.message);
+                }
+            }
+        }
+        
         process.exit(1);
     }
 }

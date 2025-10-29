@@ -8,11 +8,12 @@ const DataValidator = require('../utils/data-validator');
  * Extracts sections using ToC-guided header detection
  */
 class O2PdfScraper {
-    constructor() {
+    constructor(errorMonitor = null) {
         this.pdfDownloader = new PdfDownloader();
         this.sectionExtractor = new SectionTextExtractor();
         this.dataStorage = new DataStorage();
         this.dataValidator = new DataValidator();
+        this.errorMonitor = errorMonitor;
     }
 
     /**
@@ -38,9 +39,38 @@ class O2PdfScraper {
             
             if (!localPdfPath) {
                 console.log(`Downloading PDF from: ${pdfUrl}`);
-                const result = await this.pdfDownloader.downloadAndExtractPdf(pdfUrl, true);
-                pdfFilePath = result.filePath;
-                console.log(`PDF downloaded to: ${pdfFilePath}`);
+                try {
+                    const result = await this.pdfDownloader.downloadAndExtractPdf(pdfUrl, true);
+                    pdfFilePath = result.filePath;
+                    console.log(`PDF downloaded to: ${pdfFilePath}`);
+                } catch (downloadError) {
+                    // Record provider failure in error monitor
+                    if (this.errorMonitor) {
+                        this.errorMonitor.recordError({
+                            provider: 'O2 Slovakia',
+                            operation: 'pdf-download',
+                            type: downloadError.statusCode === 403 ? 'FORBIDDEN_ERROR' : 'NETWORK_ERROR',
+                            message: downloadError.statusCode 
+                                ? `HTTP ${downloadError.statusCode}: Failed to download PDF from ${pdfUrl} - ${downloadError.statusMessage || downloadError.message}`
+                                : `Failed to download PDF from ${pdfUrl}: ${downloadError.message}`,
+                            errorCode: downloadError.statusCode || null,
+                            severity: downloadError.statusCode === 403 ? 'critical' : 'error',
+                            context: {
+                                pdfUrl: pdfUrl,
+                                cennikName: cennikName
+                            }
+                        });
+                    }
+                    
+                    // Re-throw with more context
+                    const errorMessage = downloadError.statusCode 
+                        ? `HTTP ${downloadError.statusCode}: Failed to download PDF from ${pdfUrl} - ${downloadError.statusMessage || downloadError.message}`
+                        : `Failed to download PDF from ${pdfUrl}: ${downloadError.message}`;
+                    const error = new Error(errorMessage);
+                    error.statusCode = downloadError.statusCode;
+                    error.originalError = downloadError;
+                    throw error;
+                }
             } else {
                 console.log(`Using local PDF: ${localPdfPath}`);
                 pdfFilePath = localPdfPath;
@@ -105,6 +135,40 @@ class O2PdfScraper {
             console.log(`\n🔍 Validating extracted O2 data...`);
             const validationResult = this.dataValidator.validateExtractedData(enrichedData, 'o2');
             console.log(this.dataValidator.getValidationSummary(validationResult));
+            
+            // Record validation warnings in ErrorMonitor
+            if (this.errorMonitor && validationResult.warnings.length > 0) {
+                validationResult.warnings.forEach(warning => {
+                    this.errorMonitor.recordWarning({
+                        provider: 'O2 Slovakia',
+                        operation: 'data-validation',
+                        message: warning,
+                        context: {
+                            pdfUrl: pdfUrl,
+                            cennikName: cennikName,
+                            validationType: 'extracted-data'
+                        }
+                    });
+                });
+            }
+
+            // Record validation errors (if any pass through)
+            if (this.errorMonitor && validationResult.errors.length > 0) {
+                validationResult.errors.forEach(error => {
+                    this.errorMonitor.recordError({
+                        provider: 'O2 Slovakia',
+                        operation: 'data-validation',
+                        type: 'VALIDATION_ERROR',
+                        message: error,
+                        severity: 'error',
+                        context: {
+                            pdfUrl: pdfUrl,
+                            cennikName: cennikName,
+                            validationType: 'extracted-data'
+                        }
+                    });
+                });
+            }
             
             enrichedData.metadata.validation = {
                 isValid: validationResult.isValid,

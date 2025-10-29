@@ -1,7 +1,6 @@
 const BaseCrawler = require('./base-crawler');
 const cheerio = require('cheerio');
 const OkayfonPdfScraper = require('../scrapers/okayfon-pdf-scraper');
-const ErrorHandler = require('../utils/error-handler');
 
 /**
  * Okay fón Slovakia specific crawler
@@ -10,7 +9,6 @@ const ErrorHandler = require('../utils/error-handler');
 class OkayfonCrawler extends BaseCrawler {
     constructor(config) {
         super('Okay fón Slovakia', config);
-        this.errorHandler = new ErrorHandler();
     }
 
     /**
@@ -293,7 +291,8 @@ class OkayfonCrawler extends BaseCrawler {
                             totalCharacters: extractedData.summary?.totalCharacters || 0,
                             originalCharacters: extractedData.summary?.originalCharacters || 0
                         },
-                        extractionInfo: extractedData.extractionInfo
+                        extractionInfo: extractedData.extractionInfo,
+                        validation: extractedData.metadata?.validation
                     };
                     
                     results.push(pdfData);
@@ -373,7 +372,8 @@ class OkayfonCrawler extends BaseCrawler {
                         extractionInfo: extractedData.extractionInfo
                     },
                     summary: extractedData.summary,
-                    extractionInfo: extractedData.extractionInfo
+                    extractionInfo: extractedData.extractionInfo,
+                    validation: extractedData.metadata?.validation
                 };
                 results.push(pdfData);
             } else {

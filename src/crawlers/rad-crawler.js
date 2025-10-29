@@ -209,7 +209,7 @@ class RadCrawler extends BaseCrawler {
             const allPdfData = [];
             
             try {
-                const radScraper = new RadPdfScraper();
+                const radScraper = new RadPdfScraper(this.errorMonitor);
                 const extractedData = await radScraper.scrapePdf(primaryPdf.url, `RAD Cenník služieb`, null, true);
                 
                 // Create consolidated rawText from all sections (like Telekom)
@@ -228,7 +228,8 @@ class RadCrawler extends BaseCrawler {
                     pdfType: 'Cenník služieb',
                     rawText: consolidatedRawText.trim(),
                     summary: extractedData.summary,
-                    extractionInfo: extractedData.extractionInfo
+                    extractionInfo: extractedData.extractionInfo,
+                    validation: extractedData.metadata?.validation
                 };
                 
                 console.log(`📊 PDF Data Structure for RAD Cenník služieb:`);
@@ -280,8 +281,13 @@ class RadCrawler extends BaseCrawler {
             return consolidatedResult;
             
         } catch (error) {
-            const errorResult = this.errorHandler.handleError(error, 'rad-crawl', 'RAD Slovakia');
-            throw errorResult.error;
+            if (this.errorMonitor) {
+                const errorResult = this.errorMonitor.handleError(error, 'rad-crawl', 'RAD Slovakia');
+                throw errorResult.error;
+            } else {
+                console.error(`❌ [RAD Slovakia] rad-crawl: ${error.message}`);
+                throw error;
+            }
         } finally {
             if (this.browser) {
                 await this.cleanup();

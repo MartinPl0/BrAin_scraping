@@ -5,6 +5,8 @@ const TescoCrawler = require('./tesco-crawler');
 const FourKaCrawler = require('./4ka-crawler');
 const RadCrawler = require('./rad-crawler');
 const OkayfonCrawler = require('./okayfon-crawler');
+const JuroCrawler = require('./juro-crawler');
+const FunfonCrawler = require('./funfon-crawler');
 const ChangeDetector = require('../utils/change-detector');
 const DataStorage = require('../storage/data-storage');
 const fs = require('fs');
@@ -32,38 +34,66 @@ class CrawlerManager {
             console.log('🚀 Initializing crawlers...');
             
             if (config.providers.o2 && config.providers.o2.crawlUrl) {
-                this.crawlers.set('o2', new O2Crawler(config.providers.o2));
+                const o2Crawler = new O2Crawler(config.providers.o2);
+                o2Crawler.errorMonitor = this.errorMonitor;
+                this.crawlers.set('o2', o2Crawler);
                 console.log('✅ O2 crawler initialized');
             }
             
             if (config.providers.telekom && config.providers.telekom.crawlUrl) {
-                this.crawlers.set('telekom', new TelekomCrawler(config.providers.telekom));
+                const telekomCrawler = new TelekomCrawler(config.providers.telekom);
+                telekomCrawler.errorMonitor = this.errorMonitor;
+                this.crawlers.set('telekom', telekomCrawler);
                 console.log('✅ Telekom crawler initialized');
             }
             
             if (config.providers.orange && config.providers.orange.crawlUrl) {
-                this.crawlers.set('orange', new OrangeCrawler(config.providers.orange));
+                const orangeCrawler = new OrangeCrawler(config.providers.orange);
+                orangeCrawler.errorMonitor = this.errorMonitor;
+                this.crawlers.set('orange', orangeCrawler);
                 console.log('✅ Orange crawler initialized');
             }
             
             if (config.providers.tesco && config.providers.tesco.crawlUrl) {
-                this.crawlers.set('tesco', new TescoCrawler(config.providers.tesco));
+                const tescoCrawler = new TescoCrawler(config.providers.tesco);
+                tescoCrawler.errorMonitor = this.errorMonitor;
+                this.crawlers.set('tesco', tescoCrawler);
                 console.log('✅ Tesco Mobile crawler initialized');
             }
             
             if (config.providers.fourka && config.providers.fourka.crawlUrl) {
-                this.crawlers.set('fourka', new FourKaCrawler(config.providers.fourka));
+                const fourkaCrawler = new FourKaCrawler(config.providers.fourka);
+                fourkaCrawler.errorMonitor = this.errorMonitor;
+                this.crawlers.set('fourka', fourkaCrawler);
                 console.log('✅ 4ka crawler initialized');
             }
             
             if (config.providers.rad && config.providers.rad.crawlUrl) {
-                this.crawlers.set('rad', new RadCrawler(config.providers.rad));
+                const radCrawler = new RadCrawler(config.providers.rad);
+                radCrawler.errorMonitor = this.errorMonitor;
+                this.crawlers.set('rad', radCrawler);
                 console.log('✅ RAD crawler initialized');
             }
             
             if (config.providers.okayfon && config.providers.okayfon.crawlUrl) {
-                this.crawlers.set('okayfon', new OkayfonCrawler(config.providers.okayfon));
+                const okayfonCrawler = new OkayfonCrawler(config.providers.okayfon);
+                okayfonCrawler.errorMonitor = this.errorMonitor;
+                this.crawlers.set('okayfon', okayfonCrawler);
                 console.log('✅ Okay fón crawler initialized');
+            }
+            
+            if (config.providers.juro && config.providers.juro.crawlUrl) {
+                const juroCrawler = new JuroCrawler(config.providers.juro);
+                juroCrawler.errorMonitor = this.errorMonitor;
+                this.crawlers.set('juro', juroCrawler);
+                console.log('✅ Juro crawler initialized');
+            }
+            
+            if (config.providers.funfon && config.providers.funfon.crawlUrl) {
+                const funfonCrawler = new FunfonCrawler(config.providers.funfon);
+                funfonCrawler.errorMonitor = this.errorMonitor;
+                this.crawlers.set('funfon', funfonCrawler);
+                console.log('✅ Funfon crawler initialized');
             }
             
             console.log(`🎯 Total crawlers initialized: ${this.crawlers.size}`);
@@ -336,6 +366,17 @@ class CrawlerManager {
             const duration = Date.now() - startTime;
             console.log(`✅ ${providerName} quick metadata crawl completed in ${duration}ms`);
             
+            // Record successful quick metadata crawl
+            if (this.errorMonitor && result && result.pdfs) {
+                this.errorMonitor.recordSuccess({
+                    provider: providerName,
+                    operation: 'quick-metadata-crawl',
+                    message: `Successfully completed quick metadata crawl for ${providerName}`,
+                    duration: duration,
+                    pdfsFound: result.pdfs.length
+                });
+            }
+            
             return {
                 success: true,
                 provider: providerName,
@@ -460,7 +501,27 @@ class CrawlerManager {
             console.log(`\n🌐 Starting crawl for ${providerName}...`);
             const startTime = Date.now();
             
-            const result = await crawler.crawl(options);
+            let result;
+            try {
+                result = await crawler.crawl(options);
+            } catch (crawlError) {
+                // Check for HTTP errors using error monitor if available
+                if (this.errorMonitor) {
+                    const httpError = this.errorMonitor.checkHttpError(crawlError, providerName, 'crawl');
+                    if (!httpError) {
+                        // Record as regular error if not HTTP error
+                        this.errorMonitor.recordError({
+                            provider: providerName,
+                            operation: 'crawl',
+                            type: 'CRAWL_ERROR',
+                            message: crawlError.message,
+                            stack: crawlError.stack,
+                            severity: 'error'
+                        });
+                    }
+                }
+                throw crawlError;
+            }
             
             if (result && result.pdfs) {
                 console.log(`💾 Saving ${providerName} results to dataset storage...`);
@@ -508,6 +569,24 @@ class CrawlerManager {
             const duration = Date.now() - startTime;
             console.log(`✅ ${providerName} crawl completed in ${duration}ms`);
             
+            // Record successful crawl in error monitor
+            if (this.errorMonitor && result) {
+                const successCount = result.pdfs ? 
+                    (Array.isArray(result.pdfs) ? result.pdfs.filter(pdf => !pdf.error).length : 1) :
+                    (result.pdfUrl ? 1 : 0);
+                
+                this.errorMonitor.recordSuccess({
+                    provider: providerName,
+                    operation: 'crawl',
+                    message: `Successfully crawled ${providerName}`,
+                    duration: duration,
+                    pdfsProcessed: result.pdfs ? 
+                        (Array.isArray(result.pdfs) ? result.pdfs.length : 1) :
+                        (result.pdfUrl ? 1 : 0),
+                    successfulPdfs: successCount
+                });
+            }
+            
             return {
                 success: true,
                 provider: providerName,
@@ -519,12 +598,29 @@ class CrawlerManager {
         } catch (error) {
             console.error(`❌ ${providerName} crawl failed:`, error.message);
             
+            // Record error in error monitor if available
+            if (this.errorMonitor) {
+                const httpError = this.errorMonitor.checkHttpError(error, providerName, 'crawl');
+                if (!httpError) {
+                    this.errorMonitor.recordError({
+                        provider: providerName,
+                        operation: 'crawl',
+                        type: 'CRAWL_ERROR',
+                        message: error.message,
+                        stack: error.stack,
+                        severity: error.statusCode === 403 ? 'critical' : 'error',
+                        errorCode: error.statusCode || null
+                    });
+                }
+            }
+            
             return {
                 success: false,
                 provider: providerName,
                 error: error.message,
                 stack: error.stack,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                statusCode: error.statusCode || null
             };
         }
     }

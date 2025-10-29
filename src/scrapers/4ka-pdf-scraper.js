@@ -6,11 +6,12 @@ const fs = require('fs').promises;
 const path = require('path');
 
 class FourKaPdfScraper {
-    constructor() {
+    constructor(errorMonitor = null) {
         this.pdfDownloader = new PdfDownloader();
         this.sectionExtractor = new FourKaSectionExtractor();
         this.euroExtractor = new OrangeEuroExtractor();
         this.validator = new DataValidator();
+        this.errorMonitor = errorMonitor;
     }
 
     /**
@@ -136,6 +137,40 @@ class FourKaPdfScraper {
             console.log(`\n🔍 Validating extracted 4ka data...`);
             const validationResult = await this.validator.validateExtractedData(enrichedData, 'fourka');
             console.log(`📊 Validation complete: ${validationResult.errors.length} errors, ${validationResult.warnings.length} warnings`);
+            
+            // Record validation warnings in ErrorMonitor
+            if (this.errorMonitor && validationResult.warnings.length > 0) {
+                validationResult.warnings.forEach(warning => {
+                    this.errorMonitor.recordWarning({
+                        provider: '4ka',
+                        operation: 'data-validation',
+                        message: warning,
+                        context: {
+                            pdfUrl: pdfUrl,
+                            cennikName: cennikName,
+                            validationType: 'extracted-data'
+                        }
+                    });
+                });
+            }
+
+            // Record validation errors (if any pass through)
+            if (this.errorMonitor && validationResult.errors.length > 0) {
+                validationResult.errors.forEach(error => {
+                    this.errorMonitor.recordError({
+                        provider: '4ka',
+                        operation: 'data-validation',
+                        type: 'VALIDATION_ERROR',
+                        message: error,
+                        severity: 'error',
+                        context: {
+                            pdfUrl: pdfUrl,
+                            cennikName: cennikName,
+                            validationType: 'extracted-data'
+                        }
+                    });
+                });
+            }
             
             if (validationResult.errors.length > 0) {
                 console.log(`❌ Data validation failed:`, validationResult.errors);

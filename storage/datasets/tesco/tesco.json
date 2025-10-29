@@ -1,7 +1,7 @@
 {
 	"provider": "Tesco Mobile Slovakia",
-	"crawlDate": "2025-10-28T17:35:11.401Z",
-	"lastChecked": "2025-10-28T17:35:11.401Z",
+	"crawlDate": "2025-10-29T21:22:49.494Z",
+	"lastChecked": "2025-10-29T21:22:49.494Z",
 	"totalPdfs": 2,
 	"successfulPdfs": 2,
 	"failedPdfs": 0,
@@ -22,6 +22,24 @@
 				"extractionMethod": "euro-symbol-based",
 				"pagesWithEuro": 24,
 				"totalPages": 29
+			},
+			"validation": {
+				"isValid": true,
+				"errorCount": 0,
+				"warningCount": 10,
+				"errors": [],
+				"warnings": [
+					"Tesco general: Price 120€ seems too high (expected 50-)",
+					"Tesco general: Price 120€ seems too high (expected 50-)",
+					"Tesco general: Price 90€ seems too high (expected 50-)",
+					"Tesco general: Price 300€ seems too high (expected 50-)",
+					"Tesco general: Price 1000€ seems too high (expected 50-)",
+					"Tesco general: Price 300€ seems too high (expected 50-)",
+					"Tesco general: Price 1000€ seems too high (expected 50-)",
+					"Tesco general: Price 300€ seems too high (expected 50-)",
+					"Tesco general: Price 1000€ seems too high (expected 50-)",
+					"Tesco general: Price 300€ seems too high (expected 50-)"
+				]
 			}
 		},
 		{
@@ -40,6 +58,23 @@
 				"extractionMethod": "euro-symbol-based",
 				"pagesWithEuro": 25,
 				"totalPages": 30
+			},
+			"validation": {
+				"isValid": true,
+				"errorCount": 0,
+				"warningCount": 9,
+				"errors": [],
+				"warnings": [
+					"Tesco general: Price 120€ seems too high (expected 50-)",
+					"Tesco general: Price 120€ seems too high (expected 50-)",
+					"Tesco general: Price 90€ seems too high (expected 50-)",
+					"Tesco general: Price 300€ seems too high (expected 50-)",
+					"Tesco general: Price 1000€ seems too high (expected 50-)",
+					"Tesco general: Price 300€ seems too high (expected 50-)",
+					"Tesco general: Price 1000€ seems too high (expected 50-)",
+					"Tesco general: Price 300€ seems too high (expected 50-)",
+					"Tesco general: Price 300€ seems too high (expected 50-)"
+				]
 			}
 		}
 	],

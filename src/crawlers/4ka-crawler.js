@@ -523,7 +523,7 @@ class FourKaCrawler extends BaseCrawler {
                 
                 try {
                     const FourKaPdfScraper = require('../scrapers/4ka-pdf-scraper');
-                    const fourKaScraper = new FourKaPdfScraper();
+                    const fourKaScraper = new FourKaPdfScraper(this.errorMonitor);
                     const extractedData = await fourKaScraper.scrapePdf(pdfLink.url, `4ka ${pdfLink.pdfType}`, null, true, pdfLink.category);
                     
                     const pdfData = {
@@ -533,7 +533,8 @@ class FourKaCrawler extends BaseCrawler {
                         category: pdfLink.category,
                         rawText: extractedData.rawText || extractedData.data?.sections?.fullContent || '',
                         summary: extractedData.summary,
-                        extractionInfo: extractedData.extractionInfo
+                        extractionInfo: extractedData.extractionInfo,
+                        validation: extractedData.metadata?.validation
                     };
                     
                     console.log(`📊 PDF Data Structure for ${pdfLink.pdfType}:`);
@@ -616,8 +617,13 @@ class FourKaCrawler extends BaseCrawler {
                 };
             
         } catch (error) {
-            const errorResult = this.errorHandler.handleError(error, '4ka-crawl', '4ka Slovakia');
-            throw errorResult.error;
+            if (this.errorMonitor) {
+                const errorResult = this.errorMonitor.handleError(error, '4ka-crawl', '4ka Slovakia');
+                throw errorResult.error;
+            } else {
+                console.error(`❌ [4ka Slovakia] 4ka-crawl: ${error.message}`);
+                throw error;
+            }
         } finally {
             if (this.browser) {
                 await this.cleanup();

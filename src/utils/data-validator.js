@@ -32,6 +32,27 @@ class DataValidator {
             case 'orange':
                 this.validateOrangeData(data);
                 break;
+            case 'juro':
+                // Juro uses euro-symbol-based extraction, similar to Orange
+                this.validateOrangeData(data);
+                break;
+            case 'funfon':
+                // Funfon uses ToC-based extraction with its own sections
+                this.validateFunfonData(data);
+                break;
+            case 'fourka':
+            case '4ka':
+                this.validateFourkaData(data);
+                break;
+            case 'tesco':
+                this.validateTescoData(data);
+                break;
+            case 'okayfon':
+                this.validateOkayfonData(data);
+                break;
+            case 'rad':
+                this.validateRadData(data);
+                break;
             default:
                 console.warn(`⚠️  Unknown provider: ${provider}, skipping provider-specific validation`);
         }
@@ -166,6 +187,29 @@ class DataValidator {
     }
 
     /**
+     * Validate Funfon-specific data
+     * @param {Object} data - Funfon data to validate
+     */
+    validateFunfonData(data) {
+        if (!data.data || !data.data.sections) return;
+
+        const sections = data.data.sections;
+        const { loadConfig } = require('./config-loader');
+        const config = loadConfig();
+        const funfonSections = config.providers?.funfon?.sections || {};
+        const expectedSections = Object.keys(funfonSections);
+
+        expectedSections.forEach(sectionKey => {
+            if (!sections[sectionKey]) {
+                this.validationWarnings.push(`Missing expected Funfon section: ${sectionKey}`);
+            }
+        });
+
+        // Validate basic price ranges (similar to Telekom but generic)
+        this.validateTelekomPrices(sections);
+    }
+
+    /**
      * Validate Orange-specific data
      * @param {Object} data - Orange data to validate
      */
@@ -184,6 +228,154 @@ class DataValidator {
                 this.validationWarnings.push(`Orange content seems too long: ${contentLength} characters`);
             }
         }
+    }
+
+    /**
+     * Validate Fourka-specific data
+     * @param {Object} data - Fourka data to validate
+     */
+    validateFourkaData(data) {
+        if (!data.data || !data.data.sections) return;
+
+        const sections = data.data.sections;
+        
+        // Fourka uses mixed extraction method, check for expected content
+        const expectedContentTypes = ['fullContent', 'mobilnych_sluzieb', 'premiovych_cisel'];
+        
+        let hasContent = false;
+        expectedContentTypes.forEach(contentType => {
+            if (sections[contentType] && sections[contentType].length > 50) {
+                hasContent = true;
+            }
+        });
+
+        if (!hasContent) {
+            this.validationWarnings.push('Missing expected Fourka content sections');
+        }
+
+        // Check for mobile services content
+        if (sections.mobilnych_sluzieb) {
+            const contentLength = sections.mobilnych_sluzieb.length;
+            if (contentLength < 100) {
+                this.validationWarnings.push(`Fourka mobile services content seems too short: ${contentLength} characters`);
+            }
+        }
+
+        // Check for premium numbers content
+        if (sections.premiovych_cisel) {
+            const contentLength = sections.premiovych_cisel.length;
+            if (contentLength < 50) {
+                this.validationWarnings.push(`Fourka premium numbers content seems too short: ${contentLength} characters`);
+            }
+        }
+
+        // Validate basic price ranges for Fourka
+        this.validatePriceRange(sections, 'Fourka general', 0, 200);
+    }
+
+    /**
+     * Validate Tesco-specific data
+     * @param {Object} data - Tesco data to validate
+     */
+    validateTescoData(data) {
+        if (!data.data || !data.data.sections) return;
+
+        const sections = data.data.sections;
+        
+        // Tesco uses euro-symbol-based extraction, check for expected content
+        const expectedContentTypes = ['fullContent', 'topka', 'trio'];
+        
+        let hasContent = false;
+        expectedContentTypes.forEach(contentType => {
+            if (sections[contentType] && sections[contentType].length > 50) {
+                hasContent = true;
+            }
+        });
+
+        if (!hasContent) {
+            this.validationWarnings.push('Missing expected Tesco content sections');
+        }
+
+        // Check for Topka content
+        if (sections.topka) {
+            const contentLength = sections.topka.length;
+            if (contentLength < 100) {
+                this.validationWarnings.push(`Tesco Topka content seems too short: ${contentLength} characters`);
+            }
+        }
+
+        // Check for Trio content
+        if (sections.trio) {
+            const contentLength = sections.trio.length;
+            if (contentLength < 100) {
+                this.validationWarnings.push(`Tesco Trio content seems too short: ${contentLength} characters`);
+            }
+        }
+
+        // Validate price ranges for Tesco (typically lower prices)
+        this.validatePriceRange(sections, 'Tesco general', 0, 50);
+    }
+
+    /**
+     * Validate Okayfon-specific data
+     * @param {Object} data - Okayfon data to validate
+     */
+    validateOkayfonData(data) {
+        if (!data.data || !data.data.sections) return;
+
+        const sections = data.data.sections;
+        
+        // Okayfon uses euro-symbol-based extraction, check for expected content
+        const expectedContentTypes = ['fullContent', 'datovych_balikov'];
+        
+        let hasContent = false;
+        expectedContentTypes.forEach(contentType => {
+            if (sections[contentType] && sections[contentType].length > 50) {
+                hasContent = true;
+            }
+        });
+
+        if (!hasContent) {
+            this.validationWarnings.push('Missing expected Okayfon content sections');
+        }
+
+        // Check for data packages content
+        if (sections.datovych_balikov) {
+            const contentLength = sections.datovych_balikov.length;
+            if (contentLength < 100) {
+                this.validationWarnings.push(`Okayfon data packages content seems too short: ${contentLength} characters`);
+            }
+        }
+
+        // Validate price ranges for Okayfon (data packages)
+        this.validatePriceRange(sections, 'Okayfon general', 0, 100);
+    }
+
+    /**
+     * Validate RAD-specific data
+     * @param {Object} data - RAD data to validate
+     */
+    validateRadData(data) {
+        if (!data.data || !data.data.sections) return;
+
+        const sections = data.data.sections;
+        const expectedSections = [
+            'radost',
+            'datove_sluzby',
+            'doplnkove_sluzby',
+            'ostatne_volania',
+            'roaming',
+            'sluzby_zabavy'
+        ];
+
+        expectedSections.forEach(sectionKey => {
+            if (!sections[sectionKey]) {
+                this.validationWarnings.push(`Missing expected RAD section: ${sectionKey}`);
+            }
+        });
+
+        // Validate RAD-specific price ranges
+        this.validatePriceRange(sections, 'RAD general', 0, 150);
     }
 
     /**
@@ -332,6 +524,62 @@ class DataValidator {
         } else {
             return `❌ Data validation failed (${validationResult.errorCount} errors, ${validationResult.warningCount} warnings)`;
         }
+    }
+
+    /**
+     * Check for validation failures that indicate silent failures
+     * @param {Object} data - Extracted data
+     * @param {string} provider - Provider name
+     * @returns {Object|null} Failure information or null if no issues
+     */
+    detectSilentFailures(data, provider) {
+        const failures = [];
+
+        // Check if data is missing critical fields
+        if (!data || !data.data) {
+            failures.push({
+                type: 'MISSING_DATA',
+                message: 'Data object is missing or incomplete',
+                severity: 'error'
+            });
+            return { hasFailures: true, failures };
+        }
+
+        // Check if sections are empty
+        if (!data.data.sections || Object.keys(data.data.sections).length === 0) {
+            failures.push({
+                type: 'EMPTY_SECTIONS',
+                message: 'No sections extracted from PDF',
+                severity: 'critical'
+            });
+        }
+
+        // Check if extracted content is suspiciously small
+        const totalChars = data.data.summary?.totalCharacters || 0;
+        if (totalChars < 100) {
+            failures.push({
+                type: 'INSUFFICIENT_CONTENT',
+                message: `Extracted content is too small (${totalChars} characters) - possible extraction failure`,
+                severity: 'critical'
+            });
+        }
+
+        // Check if summary indicates failures
+        const failedExtractions = data.data.summary?.failedExtractions || 0;
+        const totalSections = data.data.summary?.totalSections || 0;
+        if (totalSections > 0 && failedExtractions === totalSections) {
+            failures.push({
+                type: 'ALL_EXTRACTIONS_FAILED',
+                message: `All ${totalSections} extractions failed`,
+                severity: 'critical'
+            });
+        }
+
+        if (failures.length > 0) {
+            return { hasFailures: true, failures };
+        }
+
+        return null;
     }
 }
 

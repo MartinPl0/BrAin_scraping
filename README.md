@@ -220,6 +220,43 @@ The system supports multiple extraction strategies based on PDF structure:
 
 ## 🔧 **Configuration**
 
+### **Environment Variables Setup**
+
+The system uses environment variables for sensitive configuration like email credentials. This keeps sensitive data out of version control.
+
+#### **Setup Steps:**
+
+1. **Create `.env` file** in the project root:
+```bash
+# Email Configuration
+EMAIL_SMTP_HOST=smtp.gmail.com
+EMAIL_SMTP_PORT=587
+EMAIL_SMTP_SECURE=false
+EMAIL_SMTP_USER=your-email@gmail.com
+EMAIL_SMTP_PASS=your-app-password
+EMAIL_FROM=your-email@gmail.com
+EMAIL_TO=your-email@gmail.com,another-email@example.com
+
+# Debug mode
+DEBUG=false
+```
+
+2. **The `.env` file is already added to `.gitignore`** to prevent committing sensitive data.
+
+3. **Environment variables override** the values in `scraper-config.json` when present.
+
+#### **Email Configuration:**
+- **EMAIL_SMTP_USER**: Your Gmail address
+- **EMAIL_SMTP_PASS**: Gmail App Password (not your regular password)
+- **EMAIL_FROM**: Sender email address
+- **EMAIL_TO**: Comma-separated list of recipient emails
+
+#### **Gmail App Password Setup:**
+1. Enable 2-Factor Authentication on your Google account
+2. Go to Google Account settings → Security → App passwords
+3. Generate an app password for "Mail"
+4. Use this 16-character password (not your regular Gmail password)
+
 ### **Provider Configuration** (`src/config/scraper-config.json`)
 ```json
 {

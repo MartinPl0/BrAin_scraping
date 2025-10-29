@@ -1,7 +1,6 @@
 const BaseCrawler = require('./base-crawler');
 const cheerio = require('cheerio');
 const TescoJsonMerger = require('../utils/mergers/tesco-json-merger');
-const ErrorHandler = require('../utils/error-handler');
 
 /**
  * Tesco Mobile Slovakia specific crawler
@@ -11,7 +10,6 @@ class TescoCrawler extends BaseCrawler {
     constructor(config) {
         super('Tesco Mobile Slovakia', config);
         this.jsonMerger = new TescoJsonMerger();
-        this.errorHandler = new ErrorHandler();
     }
 
     /**
@@ -292,7 +290,8 @@ class TescoCrawler extends BaseCrawler {
                             totalCharacters: extractedData.summary?.totalCharacters || 0,
                             originalCharacters: extractedData.summary?.originalCharacters || 0
                         },
-                        extractionInfo: extractedData.extractionInfo
+                        extractionInfo: extractedData.extractionInfo,
+                        validation: extractedData.metadata?.validation
                     };
                     
                     console.log(`📊 PDF Data Structure for ${pdfLink.pdfType}:`);
@@ -378,8 +377,13 @@ class TescoCrawler extends BaseCrawler {
             return consolidatedResult;
             
         } catch (error) {
-            const errorResult = this.errorHandler.handleError(error, 'tesco-crawl', 'Tesco Mobile Slovakia');
-            throw errorResult.error;
+            if (this.errorMonitor) {
+                const errorResult = this.errorMonitor.handleError(error, 'tesco-crawl', 'Tesco Mobile Slovakia');
+                throw errorResult.error;
+            } else {
+                console.error(`❌ [Tesco Mobile Slovakia] tesco-crawl: ${error.message}`);
+                throw error;
+            }
         } finally {
             if (this.browser) {
                 await this.cleanup();

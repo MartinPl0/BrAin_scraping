@@ -57,7 +57,10 @@ class PdfDownloader {
                     }
                     
                     if (response.statusCode !== 200) {
-                        reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
+                        const error = new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`);
+                        error.statusCode = response.statusCode;
+                        error.statusMessage = response.statusMessage;
+                        reject(error);
                         return;
                     }
                     

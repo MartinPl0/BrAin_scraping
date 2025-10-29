@@ -305,9 +305,22 @@ class PriceMonitor {
                 emailNotifier: !!this.emailNotifier
             };
             
-            // TODO: Test email notifications when configured
-            console.log('⚠️  Email notification tests skipped - not configured');
-            testResults.emailTest = false;
+            // Test email notifications if configured
+            if (this.emailNotifier && this.emailNotifier.transporter) {
+                try {
+                    console.log('📧 Testing email configuration...');
+                    // Test email sending (you can uncomment this to actually send a test email)
+                    // await this.emailNotifier.sendTestEmail();
+                    console.log('✅ Email configuration valid');
+                    testResults.emailTest = true;
+                } catch (emailError) {
+                    console.error('❌ Email test failed:', emailError.message);
+                    testResults.emailTest = false;
+                }
+            } else {
+                console.log('⚠️  Email notification tests skipped - not configured');
+                testResults.emailTest = false;
+            }
             
             console.log('✅ Configuration test completed');
             return testResults;

@@ -9,9 +9,10 @@ const DataValidator = require('../utils/data-validator');
  * Uses simple full-text extraction (no ToC needed)
  */
 class OrangePdfScraper {
-    constructor() {
+    constructor(errorMonitor = null) {
         this.pdfDownloader = new PdfDownloader();
         this.sectionExtractor = new OrangeSectionExtractor();
+        this.errorMonitor = errorMonitor;
         this.euroExtractor = new OrangeEuroExtractor();
         this.dataStorage = new DataStorage();
         this.dataValidator = new DataValidator();
@@ -107,13 +108,64 @@ class OrangePdfScraper {
                     summary: summary,
                     extractionInfo: extractionInfo
                 },
-                scrapedAt: new Date().toISOString()
+                scrapedAt: new Date().toISOString(),
+                metadata: {
+                    totalSections: summary.totalSections,
+                    successfulExtractions: summary.successfulExtractions,
+                    failedExtractions: summary.failedExtractions,
+                    totalCharacters: summary.totalCharacters,
+                    source: 'Orange PDF Euro Symbol Extractor',
+                    isLocalFile: !!localPdfPath,
+                    originalUrl: pdfUrl,
+                    extractionMethod: 'euro-symbol-based'
+                }
             };
 
             console.log(`\n🔍 Validating extracted Orange data...`);
             const validationResult = this.dataValidator.validateExtractedData(enrichedData, 'orange');
             console.log(this.dataValidator.getValidationSummary(validationResult));
             
+            // Record validation warnings in ErrorMonitor
+            if (this.errorMonitor && validationResult.warnings.length > 0) {
+                validationResult.warnings.forEach(warning => {
+                    this.errorMonitor.recordWarning({
+                        provider: 'Orange Slovakia',
+                        operation: 'data-validation',
+                        message: warning,
+                        context: {
+                            pdfUrl: pdfUrl,
+                            cennikName: cennikName,
+                            validationType: 'extracted-data'
+                        }
+                    });
+                });
+            }
+
+            // Record validation errors (if any pass through)
+            if (this.errorMonitor && validationResult.errors.length > 0) {
+                validationResult.errors.forEach(error => {
+                    this.errorMonitor.recordError({
+                        provider: 'Orange Slovakia',
+                        operation: 'data-validation',
+                        type: 'VALIDATION_ERROR',
+                        message: error,
+                        severity: 'error',
+                        context: {
+                            pdfUrl: pdfUrl,
+                            cennikName: cennikName,
+                            validationType: 'extracted-data'
+                        }
+                    });
+                });
+            }
+            
+            enrichedData.metadata.validation = {
+                isValid: validationResult.isValid,
+                errorCount: validationResult.errorCount,
+                warningCount: validationResult.warningCount,
+                errors: validationResult.errors,
+                warnings: validationResult.warnings
+            };
 
             if (!validationResult.isValid) {
                 console.error(`❌ Critical validation errors detected. Data will not be saved.`);
@@ -147,6 +199,7 @@ class OrangePdfScraper {
                     data: enrichedData.data,
                     summary: enrichedData.data.summary,
                     extractionInfo: enrichedData.data.extractionInfo,
+                    metadata: enrichedData.metadata,
                     timestamp: new Date().toISOString()
                 };
             } else {

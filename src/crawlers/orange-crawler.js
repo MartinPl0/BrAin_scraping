@@ -1,7 +1,6 @@
 const BaseCrawler = require('./base-crawler');
 const cheerio = require('cheerio');
 const OrangeJsonMerger = require('../utils/mergers/orange-json-merger');
-const ErrorHandler = require('../utils/error-handler');
 
 /**
  * Orange Slovakia specific crawler
@@ -11,7 +10,6 @@ class OrangeCrawler extends BaseCrawler {
     constructor(config) {
         super('Orange Slovakia', config);
         this.jsonMerger = new OrangeJsonMerger();
-        this.errorHandler = new ErrorHandler();
     }
 
     /**
@@ -311,7 +309,7 @@ class OrangeCrawler extends BaseCrawler {
                 
                 try {
                     const OrangePdfScraper = require('../scrapers/orange-pdf-scraper');
-                    const orangeScraper = new OrangePdfScraper();
+                    const orangeScraper = new OrangePdfScraper(this.errorMonitor);
                     const extractedData = await orangeScraper.scrapePdf(pdfLink.url, `Orange Cenník služieb - ${pdfLink.pdfType}`, null, true);
                     
                     const pdfData = {
@@ -320,7 +318,8 @@ class OrangeCrawler extends BaseCrawler {
                         pdfType: pdfLink.pdfType,
                         rawText: extractedData.data?.sections?.fullContent || '',
                         summary: extractedData.summary,
-                        extractionInfo: extractedData.extractionInfo
+                        extractionInfo: extractedData.extractionInfo,
+                        validation: extractedData.metadata?.validation
                     };
                     
                     console.log(`📊 PDF Data Structure for ${pdfLink.pdfType}:`);
@@ -418,8 +417,13 @@ class OrangeCrawler extends BaseCrawler {
             return consolidatedResult;
             
         } catch (error) {
-            const errorResult = this.errorHandler.handleError(error, 'orange-crawl', 'Orange Slovakia');
-            throw errorResult.error;
+            if (this.errorMonitor) {
+                const errorResult = this.errorMonitor.handleError(error, 'orange-crawl', 'Orange Slovakia');
+                throw errorResult.error;
+            } else {
+                console.error(`❌ [Orange Slovakia] orange-crawl: ${error.message}`);
+                throw error;
+            }
         } finally {
             if (this.browser) {
                 await this.cleanup();

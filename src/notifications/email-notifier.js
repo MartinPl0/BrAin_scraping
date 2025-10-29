@@ -1,25 +1,26 @@
 /**
- * TODO: Email Notification System
+ * Email Notification System
+ * Sends email notifications for monitoring failures, errors, and summaries
  * 
- * This file contains the implementation for sending email notifications for monitoring failures and alerts.
- * The code is complete but requires SMTP configuration to be functional.
- * 
- * To implement:
- * 1. Set up SMTP email service (Gmail, Outlook, or custom SMTP server)
- * 2. Obtain SMTP credentials (username/password or app-specific password)
- 
- * 3. Uncomment the code below and test with: node src/monitor.js --test
- * 
- * Features implemented:
- * - HTML and text email formatting
- * - Failure notifications with error details
- * - Summary notifications for monitoring cycles
- * - Success notifications (optional)
- * - SMTP configuration testing
- * - Error handling and retry logic
+ * Configuration:
+ * Add to src/config/scraper-config.json:
+ * {
+ *   "email": {
+ *     "smtp": {
+ *       "host": "smtp.gmail.com",
+ *       "port": 587,
+ *       "secure": false,
+ *       "auth": {
+ *         "user": "your-email@gmail.com",
+ *         "pass": "your-app-password"
+ *       }
+ *     },
+ *     "from": "your-email@gmail.com",
+ *     "to": ["recipient@example.com"]
+ *   }
+ * }
  */
 
-/*
 const nodemailer = require('nodemailer');
 
 class EmailNotifier {
@@ -31,12 +32,13 @@ class EmailNotifier {
 
     initializeTransporter() {
         try {
-            if (!this.config.email || !this.config.email.smtp) {
+            if (!this.config || !this.config.email || !this.config.email.smtp) {
                 console.warn('⚠️  Email configuration not found, email notifications disabled');
+                console.warn('   Add email configuration to src/config/scraper-config.json');
                 return;
             }
 
-            this.transporter = nodemailer.createTransporter(this.config.email.smtp);
+            this.transporter = nodemailer.createTransport(this.config.email.smtp);
             console.log('✅ Email transporter initialized');
         } catch (error) {
             console.error('❌ Failed to initialize email transporter:', error.message);
@@ -69,16 +71,200 @@ class EmailNotifier {
     }
 
     async sendFailureNotification(failureInfo) {
+        const severityText = failureInfo.severity === 'critical' ? 'CRITICAL' : 'ALERT';
         const emailOptions = {
-            subject: 'Price Monitor Alert - {provider}',
+            subject: `[${severityText}] Price Monitor Alert - ${failureInfo.provider}`,
             provider: failureInfo.provider,
             type: 'failure',
-            title: 'Price Monitoring Failure',
+            title: `Price Monitoring ${severityText}`,
             content: this.formatFailureContent(failureInfo),
             timestamp: new Date().toISOString()
         };
 
         return await this.sendEmail(emailOptions);
+    }
+
+    /**
+     * Send comprehensive error summary email
+     * @param {Object} summaryInfo - Error summary information
+     */
+    async sendErrorSummary(summaryInfo) {
+        // Determine if this is a success or error summary
+        const hasErrors = summaryInfo.totalErrors > 0;
+        const hasWarnings = summaryInfo.totalWarnings > 0;
+        const hasSuccesses = summaryInfo.totalSuccesses > 0;
+        
+        let subject, title;
+        if (hasErrors || hasWarnings) {
+            subject = `Price Monitor Summary - ${summaryInfo.totalErrors} Error(s)${hasWarnings ? `, ${summaryInfo.totalWarnings} Warning(s)` : ''}`;
+            title = 'Price Monitoring Error Summary';
+        } else if (hasSuccesses) {
+            subject = `Price Monitor Summary - ${summaryInfo.totalSuccesses} Success(es)`;
+            title = 'Price Monitoring Success Summary';
+        } else {
+            subject = 'Price Monitor Summary';
+            title = 'Price Monitoring Summary';
+        }
+        
+        const emailOptions = {
+            subject: subject,
+            provider: 'All Providers',
+            type: 'summary',
+            title: title,
+            content: this.formatErrorSummaryContent(summaryInfo),
+            timestamp: new Date().toISOString()
+        };
+
+        return await this.sendEmail(emailOptions);
+    }
+
+    /**
+     * Format error summary content for email
+     * @param {Object} summaryInfo - Error summary
+     * @returns {string} Formatted HTML content
+     */
+    formatErrorSummaryContent(summaryInfo) {
+        const { 
+            totalErrors, 
+            totalWarnings, 
+            totalSuccesses,
+            errorsByProvider,
+            errorsByType,
+            criticalErrors,
+            durationFormatted,
+            startTime,
+            endTime
+        } = summaryInfo;
+
+        let content = `
+            <div class="content-section">
+                <h3>📊 Monitoring Session Summary</h3>
+                <p><strong>Duration:</strong> ${durationFormatted}</p>
+                <p><strong>Started:</strong> ${new Date(startTime).toLocaleString()}</p>
+                <p><strong>Completed:</strong> ${new Date(endTime).toLocaleString()}</p>
+            </div>
+            
+            <div class="content-section">
+                <h3>📈 Statistics</h3>
+                <p><strong>Total Errors:</strong> <span style="color: ${totalErrors > 0 ? '#dc3545' : '#28a745'}">${totalErrors}</span></p>
+                <p><strong>Total Warnings:</strong> ${totalWarnings}</p>
+                <p><strong>Total Successes:</strong> ${totalSuccesses}</p>
+                ${criticalErrors && criticalErrors.length > 0 ? `<p><strong style="color: #dc3545;">Critical Errors:</strong> ${criticalErrors.length}</p>` : ''}
+            </div>
+        `;
+
+        if (errorsByProvider && Object.keys(errorsByProvider).length > 0) {
+            content += `
+                <div class="content-section">
+                    <h3>🚨 Provider Issues & System Errors</h3>
+            `;
+            
+            // Separate provider failures from system errors
+            const providerFailures = [];
+            const systemErrors = [];
+            
+            for (const [provider, errors] of Object.entries(errorsByProvider)) {
+                errors.forEach(error => {
+                    if (error.isProviderFailure) {
+                        providerFailures.push({...error, provider});
+                    } else {
+                        systemErrors.push({...error, provider});
+                    }
+                });
+            }
+            
+            // Show provider failures prominently
+            if (providerFailures.length > 0) {
+                content += `
+                    <div style="margin: 15px 0; padding: 15px; background: #fff3e0; border-left: 4px solid #ff9800;">
+                        <h4>⚠️ Provider Failures (${providerFailures.length})</h4>
+                        <p>These providers had issues that prevented data extraction:</p>
+                `;
+                
+                // Group by provider
+                const failuresByProvider = {};
+                providerFailures.forEach(error => {
+                    if (!failuresByProvider[error.provider]) {
+                        failuresByProvider[error.provider] = [];
+                    }
+                    failuresByProvider[error.provider].push(error);
+                });
+                
+                for (const [provider, failures] of Object.entries(failuresByProvider)) {
+                    const http403 = failures.filter(e => e.errorCode === 403);
+                    const otherFailures = failures.filter(e => e.errorCode !== 403);
+                    
+                    content += `
+                        <div style="margin: 10px 0; padding: 10px; background: white; border-radius: 5px;">
+                            <strong>${provider}</strong> - ${failures.length} failure(s)
+                            ${http403.length > 0 ? `<br><span style="color: #dc3545; font-weight: bold;">🚫 HTTP 403 (BLOCKED): ${http403.length}</span>` : ''}
+                            ${otherFailures.length > 0 ? `<br><span>Other issues: ${otherFailures.length}</span>` : ''}
+                            <ul style="margin-top: 8px; font-size: 14px;">
+                                ${failures.slice(0, 3).map(e => {
+                                    const emoji = e.errorCode === 403 ? '🚫' : e.errorCode === 404 ? '🔍' : e.errorCode >= 500 ? '🔥' : '⚠️';
+                                    const errorCode = e.errorCode ? ` (HTTP ${e.errorCode})` : '';
+                                    return `<li>${emoji} <strong>${e.operation}</strong>: ${e.message.substring(0, 80)}${errorCode}</li>`;
+                                }).join('')}
+                                ${failures.length > 3 ? `<li>... and ${failures.length - 3} more</li>` : ''}
+                            </ul>
+                        </div>
+                    `;
+                }
+                
+                content += `</div>`;
+            }
+            
+            // Show system errors separately
+            if (systemErrors.length > 0) {
+                content += `
+                    <div style="margin: 15px 0; padding: 15px; background: #ffebee; border-left: 4px solid #f44336;">
+                        <h4>🔥 System Errors (${systemErrors.length})</h4>
+                        <p>Internal system issues that need attention:</p>
+                        <ul style="margin-top: 8px;">
+                            ${systemErrors.slice(0, 5).map(e => `<li><strong>${e.provider}</strong> - ${e.operation}: ${e.message.substring(0, 100)}</li>`).join('')}
+                            ${systemErrors.length > 5 ? `<li>... and ${systemErrors.length - 5} more</li>` : ''}
+                        </ul>
+                    </div>
+                `;
+            }
+            
+            content += `</div>`;
+        }
+
+        if (errorsByType && Object.keys(errorsByType).length > 0) {
+            content += `
+                <div class="content-section">
+                    <h3>📋 Errors by Type</h3>
+                    <ul>
+                        ${Object.entries(errorsByType).map(([type, errors]) => 
+                            `<li><strong>${type}:</strong> ${errors.length}</li>`
+                        ).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        // Add successes section if there are any
+        if (totalSuccesses > 0 && summaryInfo.successesByProvider) {
+            content += `
+                <div class="content-section">
+                    <h3>✅ Successful Operations</h3>
+                    <div style="background-color: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                        <p><strong>Total Successful Operations:</strong> ${totalSuccesses}</p>
+            `;
+            
+            if (summaryInfo.successesByProvider && Object.keys(summaryInfo.successesByProvider).length > 0) {
+                content += '<ul style="margin-top: 10px;">';
+                for (const [provider, successes] of Object.entries(summaryInfo.successesByProvider)) {
+                    content += `<li><strong>${provider}:</strong> ${successes.length} success(es)</li>`;
+                }
+                content += '</ul>';
+            }
+            
+            content += `</div></div>`;
+        }
+
+        return content;
     }
 
     async sendSuccessNotification(successInfo) {
@@ -184,13 +370,16 @@ Timestamp: ${timestamp}
     }
 
     formatFailureContent(failureInfo) {
-        const { provider, error, errorType, affectedSections, stack } = failureInfo;
+        const { provider, error, errorType, errorCode, affectedSections, stack, severity } = failureInfo;
+        
+        const severityText = severity === 'critical' ? '🔴 CRITICAL' : severity === 'error' ? '⚠️ ERROR' : '⚠️ WARNING';
         
         let content = `
             <div class="error-details">
-                <h3>❌ Error Details</h3>
+                <h3>${severityText} Error Details</h3>
                 <p><strong>Provider:</strong> ${provider}</p>
                 <p><strong>Error Type:</strong> ${errorType || 'Unknown'}</p>
+                ${errorCode ? `<p><strong>Error Code:</strong> ${errorCode}</p>` : ''}
                 <p><strong>Error Message:</strong> ${error}</p>
         `;
 
@@ -203,10 +392,10 @@ Timestamp: ${timestamp}
             `;
         }
 
-        if (stack) {
+        if (stack && process.env.NODE_ENV === 'development') {
             content += `
                 <p><strong>Stack Trace:</strong></p>
-                <div class="code">${stack}</div>
+                <div class="code">${stack.replace(/\n/g, '<br>').substring(0, 500)}</div>
             `;
         }
 
@@ -282,29 +471,3 @@ Timestamp: ${timestamp}
 }
 
 module.exports = EmailNotifier;
-*/
-
-// Placeholder export for compatibility
-module.exports = class EmailNotifier {
-    constructor(config) {
-        console.log('⚠️  Email notification system not configured - see src/notifications/email-notifier.js for setup instructions');
-    }
-    
-    async sendFailureNotification(failureInfo) {
-        console.log(`⚠️  Email notifications not configured - failure not sent for ${failureInfo.provider}`);
-        return false;
-    }
-    
-    async sendSummaryNotification(summaryInfo) {
-        console.log('⚠️  Email notifications not configured - summary not sent');
-        return false;
-    }
-    
-    async testEmailConfiguration() {
-        return false;
-    }
-    
-    getConfigurationStatus() {
-        return { isConfigured: false, smtpHost: 'Not configured' };
-    }
-};

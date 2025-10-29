@@ -1,7 +1,7 @@
 {
 	"provider": "Orange Slovakia",
-	"crawlDate": "2025-10-28T17:35:22.080Z",
-	"lastChecked": "2025-10-28T17:35:22.080Z",
+	"crawlDate": "2025-10-29T21:17:41.259Z",
+	"lastChecked": "2025-10-29T21:17:41.259Z",
 	"totalPdfs": 6,
 	"successfulPdfs": 6,
 	"failedPdfs": 0,
@@ -22,6 +22,13 @@
 				"extractionMethod": "euro-symbol-based",
 				"pagesWithEuro": 27,
 				"totalPages": 54
+			},
+			"validation": {
+				"isValid": true,
+				"errorCount": 0,
+				"warningCount": 0,
+				"errors": [],
+				"warnings": []
 			}
 		},
 		{
@@ -40,6 +47,13 @@
 				"extractionMethod": "euro-symbol-based",
 				"pagesWithEuro": 10,
 				"totalPages": 23
+			},
+			"validation": {
+				"isValid": true,
+				"errorCount": 0,
+				"warningCount": 0,
+				"errors": [],
+				"warnings": []
 			}
 		},
 		{
@@ -58,6 +72,13 @@
 				"extractionMethod": "euro-symbol-based",
 				"pagesWithEuro": 34,
 				"totalPages": 58
+			},
+			"validation": {
+				"isValid": true,
+				"errorCount": 0,
+				"warningCount": 0,
+				"errors": [],
+				"warnings": []
 			}
 		},
 		{
@@ -76,6 +97,13 @@
 				"extractionMethod": "euro-symbol-based",
 				"pagesWithEuro": 18,
 				"totalPages": 25
+			},
+			"validation": {
+				"isValid": true,
+				"errorCount": 0,
+				"warningCount": 0,
+				"errors": [],
+				"warnings": []
 			}
 		},
 		{
@@ -94,6 +122,13 @@
 				"extractionMethod": "euro-symbol-based",
 				"pagesWithEuro": 14,
 				"totalPages": 19
+			},
+			"validation": {
+				"isValid": true,
+				"errorCount": 0,
+				"warningCount": 0,
+				"errors": [],
+				"warnings": []
 			}
 		},
 		{
@@ -112,6 +147,13 @@
 				"extractionMethod": "euro-symbol-based",
 				"pagesWithEuro": 2,
 				"totalPages": 2
+			},
+			"validation": {
+				"isValid": true,
+				"errorCount": 0,
+				"warningCount": 0,
+				"errors": [],
+				"warnings": []
 			}
 		}
 	],

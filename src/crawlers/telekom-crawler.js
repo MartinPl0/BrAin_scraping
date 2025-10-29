@@ -167,6 +167,7 @@ class TelekomCrawler extends BaseCrawler {
                         extractionInfo: extractedData.extractionInfo
                     },
                     summary: extractedData.summary,
+                    validation: extractedData.metadata?.validation,
                     extractionInfo: extractedData.extractionInfo
                 };
                 
@@ -215,8 +216,13 @@ class TelekomCrawler extends BaseCrawler {
             return consolidatedResult;
             
         } catch (error) {
-            const errorResult = this.errorHandler.handleError(error, 'telekom-crawl', 'Telekom Slovakia');
-            throw errorResult.error;
+            if (this.errorMonitor) {
+                const errorResult = this.errorMonitor.handleError(error, 'telekom-crawl', 'Telekom Slovakia');
+                throw errorResult.error;
+            } else {
+                console.error(`❌ [Telekom Slovakia] telekom-crawl: ${error.message}`);
+                throw error;
+            }
         } finally {
             if (this.browser) {
                 await this.cleanup();
