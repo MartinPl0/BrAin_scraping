@@ -1,7 +1,7 @@
 {
 	"provider": "O2 Slovakia",
-	"crawlDate": "2025-10-30T11:34:31.640Z",
-	"lastChecked": "2025-10-30T11:34:31.640Z",
+	"crawlDate": "2025-10-30T14:33:06.107Z",
+	"lastChecked": "2025-10-30T14:33:06.107Z",
 	"totalPdfs": 1,
 	"successfulPdfs": 0,
 	"failedPdfs": 1,
@@ -21,7 +21,5 @@
 		],
 		"updateType": "full"
 	},
-	"metadata": {
-		"lastChecked": "2025-10-30T11:34:31.328Z"
-	}
+	"metadata": {}
 }

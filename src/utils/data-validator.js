@@ -244,13 +244,17 @@ class DataValidator {
         
         let hasContent = false;
         expectedContentTypes.forEach(contentType => {
-            if (sections[contentType] && sections[contentType].length > 50) {
+            if (sections[contentType] && typeof sections[contentType] === 'string' && sections[contentType].length > 50) {
                 hasContent = true;
             }
         });
 
+        // Fallback: accept section-based extraction where sections are objects with rawText
         if (!hasContent) {
-            this.validationWarnings.push('Missing expected Fourka content sections');
+            const richSectionExists = Object.values(sections).some(sec => sec && typeof sec === 'object' && typeof sec.rawText === 'string' && sec.rawText.length > 500);
+            if (!richSectionExists) {
+                this.validationWarnings.push('Missing expected Fourka content sections');
+            }
         }
 
         // Check for mobile services content

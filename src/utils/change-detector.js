@@ -11,6 +11,7 @@ const axios = require('axios');
 class ChangeDetector {
     constructor() {
         this.metadataFile = path.join(__dirname, '..', '..', 'storage', 'metadata', 'latest-pdf-urls.json');
+        this.hashMetadataFile = path.join(__dirname, '..', '..', 'storage', 'metadata', 'latest-pdf-hashes.json');
         this.ensureMetadataDir();
     }
 
@@ -65,19 +66,56 @@ class ChangeDetector {
             
             if (hasUrlChanges) {
                 console.log(`🔍 ${provider}: URL changes detected, treating as content change`);
-                return true;
+                // When URLs changed, compute current hashes to persist later
+                const currentHashes = await this.computeHashesForUrls(currentUrls);
+                return { hasChanges: true, hashes: currentHashes };
             }
             
-            // TODO: Implement actual content hash comparison
-            // For now, we'll assume no changes if URLs are the same
-            console.log(`🔍 ${provider}: No URL changes, assuming content unchanged`);
-            return false;
+            // Compare content hashes when URLs are the same
+            const storedHashesAll = await this.loadStoredHashes();
+            const providerStoredHashes = storedHashesAll[provider] || {};
+            const currentHashes = await this.computeHashesForUrls(currentUrls);
+
+            let contentChanged = false;
+            for (const url of currentUrls) {
+                const newHash = currentHashes[url];
+                const oldHash = providerStoredHashes[url];
+                if (!newHash || !oldHash || newHash !== oldHash) {
+                    contentChanged = true;
+                    break;
+                }
+            }
+
+            if (contentChanged) {
+                console.log(`📝 ${provider}: Content hash difference detected with identical URLs`);
+                return { hasChanges: true, hashes: currentHashes };
+            }
+
+            console.log(`✅ ${provider}: URLs and content hashes unchanged`);
+            return { hasChanges: false, hashes: currentHashes };
             
         } catch (error) {
             console.error(`❌ Error comparing content hashes for ${provider}:`, error.message);
             // If we can't compare, assume there are changes to be safe
-            return true;
+            const currentHashes = await this.computeHashesForUrls(currentUrls).catch(() => ({}));
+            return { hasChanges: true, hashes: currentHashes };
         }
+    }
+
+    /**
+     * Compute MD5 hashes for a set of URLs
+     * @param {Array<string>} urls
+     * @returns {Promise<Object>} Map of url -> hash
+     */
+    async computeHashesForUrls(urls) {
+        const result = {};
+        for (const url of urls) {
+            const hash = await this.calculatePdfHash(url);
+            if (hash) {
+                result[url] = hash;
+            }
+        }
+        return result;
     }
 
     /**
@@ -144,6 +182,59 @@ class ChangeDetector {
                 }
             }
             
+            throw error;
+        }
+    }
+
+    /**
+     * Load stored content hashes
+     * @returns {Promise<Object>} Stored hashes: { provider: { url: hash } }
+     */
+    async loadStoredHashes() {
+        try {
+            if (!await this.fileExists(this.hashMetadataFile)) {
+                return {};
+            }
+            const data = await fs.readFile(this.hashMetadataFile, 'utf8');
+            return JSON.parse(data);
+        } catch (error) {
+            console.error('❌ Failed to load stored PDF hashes:', error.message);
+            return {};
+        }
+    }
+
+    /**
+     * Save content hashes with atomic write
+     * @param {Object} hashes - { provider: { url: hash } }
+     */
+    async saveHashes(hashes) {
+        try {
+            const data = JSON.stringify(hashes, null, 2);
+            const tempFile = this.hashMetadataFile + '.tmp';
+            const backupFile = this.hashMetadataFile + '.backup';
+
+            if (await this.fileExists(this.hashMetadataFile)) {
+                try {
+                    await fs.copyFile(this.hashMetadataFile, backupFile);
+                } catch (backupError) {
+                    console.warn('⚠️  Could not create hash backup file:', backupError.message);
+                }
+            }
+
+            await fs.writeFile(tempFile, data, 'utf8');
+            await fs.rename(tempFile, this.hashMetadataFile);
+            console.log('💾 PDF hashes saved atomically');
+        } catch (error) {
+            console.error('❌ Failed to save PDF hashes:', error.message);
+            const backupFile = this.hashMetadataFile + '.backup';
+            if (await this.fileExists(backupFile)) {
+                try {
+                    await fs.copyFile(backupFile, this.hashMetadataFile);
+                    console.log('🔄 Restored hashes from backup file');
+                } catch (restoreError) {
+                    console.error('❌ Failed to restore hashes from backup:', restoreError.message);
+                }
+            }
             throw error;
         }
     }
@@ -222,16 +313,17 @@ class ChangeDetector {
                     // For providers without date-based URLs (like okayfon), use content hash comparison
                     if (provider === 'okayfon') {
                         console.log(`🔍 Using content hash comparison for ${provider}...`);
-                        const hasChanges = await this.comparePdfContentHashes(currentUrls, storedUrlsArray, provider);
+                        const contentResult = await this.comparePdfContentHashes(currentUrls, storedUrlsArray, provider);
                         
-                        if (hasChanges) {
+                        if (contentResult.hasChanges) {
                             providersWithChanges.push({
                                 provider,
                                 changeType: 'content_updated',
                                 changes: [`PDF content changed for ${provider}`],
                                 crawlResult: result,
                                 oldUrls: storedUrlsArray,
-                                newUrls: currentUrls
+                                newUrls: currentUrls,
+                                hashes: contentResult.hashes
                             });
                             console.log(`📝 Content changes detected for ${provider}`);
                         } else {
@@ -395,6 +487,7 @@ class ChangeDetector {
             console.log(`💾 Updating stored URLs for ${providersWithChanges.length} providers with changes...`);
             
             const storedUrls = await this.loadStoredUrls();
+            const storedHashes = await this.loadStoredHashes();
             
             for (const providerData of providersWithChanges) {
                 const { provider, newUrls } = providerData;
@@ -406,9 +499,16 @@ class ChangeDetector {
                     storedUrls[provider] = newUrls[0];
                     console.log(`✅ Updated stored URLs for ${provider} (${newUrls.length} PDFs) - stored as single value`);
                 }
+
+                // Also persist hashes if provided (used for okayfon content comparison)
+                if (providerData.hashes && Object.keys(providerData.hashes).length > 0) {
+                    storedHashes[provider] = providerData.hashes;
+                    console.log(`🔒 Stored content hashes for ${provider} (${Object.keys(providerData.hashes).length} PDFs)`);
+                }
             }
             
             await this.saveUrls(storedUrls);
+            await this.saveHashes(storedHashes);
             console.log(`✅ Stored URLs updated for ${providersWithChanges.length} providers`);
         } catch (error) {
             console.error('❌ Failed to update stored URLs:', error.message);

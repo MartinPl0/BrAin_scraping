@@ -198,6 +198,12 @@ class O2Crawler extends BaseCrawler {
                 });
             }
             
+            // Preserve metadata but remove lastChecked to avoid duplication at top-level
+            const filteredMetadata = { ...(metadata || {}) };
+            if (filteredMetadata && Object.prototype.hasOwnProperty.call(filteredMetadata, 'lastChecked')) {
+                delete filteredMetadata.lastChecked;
+            }
+
             const consolidatedResult = {
                 provider: this.providerName,
                 crawlDate: new Date().toISOString(),
@@ -211,7 +217,7 @@ class O2Crawler extends BaseCrawler {
                     updatedPdfUrls: pdfLinks.map(link => link.url),
                     updateType: 'full'
                 },
-                metadata: metadata
+                metadata: filteredMetadata
             };
             
             console.log(`📊 Consolidated Results:`);

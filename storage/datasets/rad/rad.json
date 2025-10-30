@@ -1,7 +1,7 @@
 {
 	"provider": "RAD Slovakia",
-	"crawlDate": "2025-10-30T11:34:44.743Z",
-	"lastChecked": "2025-10-30T11:34:44.743Z",
+	"crawlDate": "2025-10-30T14:33:11.054Z",
+	"lastChecked": "2025-10-30T14:33:11.054Z",
 	"totalPdfs": 1,
 	"successfulPdfs": 1,
 	"failedPdfs": 0,
@@ -38,7 +38,5 @@
 		],
 		"updateType": "full"
 	},
-	"metadata": {
-		"lastChecked": "2025-10-30T11:34:31.845Z"
-	}
+	"metadata": {}
 }

@@ -79,16 +79,24 @@ class TelekomCrawler extends BaseCrawler {
 
     /**
      * Telekom-specific metadata extraction
-     * Returns basic metadata without unnecessary publishDate
+     * Parses publishDate from the clickable PDF link text (e.g., "PDF | 30.10.2025 | 435 kB")
      */
     async extractMetadata() {
         try {
+            const pdfLinks = await this.extractPdfLinks();
+            let publishDate = null;
+            if (pdfLinks.length > 0) {
+                const link = pdfLinks[0];
+                publishDate = this.extractDateFromLinkText(link.text) || this.extractDateFromFilename(link.url.split('/').pop());
+            }
             return {
+                publishDate,
                 lastChecked: new Date().toISOString()
             };
         } catch (error) {
             console.error(`❌ Failed to extract metadata for Telekom:`, error.message);
             return {
+                publishDate: null,
                 lastChecked: new Date().toISOString()
             };
         }
@@ -205,7 +213,7 @@ class TelekomCrawler extends BaseCrawler {
                     updatedPdfUrls: pdfLinks.map(link => link.url),
                     updateType: 'full'
                 },
-                metadata: metadata
+                metadata: { publishDate: metadata.publishDate }
             };
             
             console.log(`📊 Consolidated Results:`);

@@ -1,7 +1,7 @@
 {
 	"provider": "Telekom Slovakia",
-	"crawlDate": "2025-10-30T11:34:51.280Z",
-	"lastChecked": "2025-10-30T11:34:51.280Z",
+	"crawlDate": "2025-10-30T14:23:47.166Z",
+	"lastChecked": "2025-10-30T14:33:21.756Z",
 	"totalPdfs": 1,
 	"successfulPdfs": 1,
 	"failedPdfs": 0,
@@ -70,6 +70,6 @@
 		"updateType": "full"
 	},
 	"metadata": {
-		"lastChecked": "2025-10-30T11:34:45.172Z"
+		"publishDate": "2025-10-29"
 	}
 }

@@ -150,6 +150,35 @@ class DataStorage {
     }
 
     /**
+     * Update only the lastChecked timestamp in an existing dataset file
+     * @param {string} provider - Provider name
+     * @param {string} timestampIso - ISO timestamp to set; defaults to now
+     */
+    async updateLastChecked(provider, timestampIso = null) {
+        try {
+            const providerDir = path.join(this.baseStorageDir, provider);
+            const fileName = `${provider}.json`;
+            const filePath = path.join(providerDir, fileName);
+
+            if (!(await this.fileExists(filePath))) {
+                return false;
+            }
+
+            const raw = await fs.readFile(filePath, 'utf8');
+            const data = JSON.parse(raw);
+
+            const ts = timestampIso || new Date().toISOString();
+            data.lastChecked = ts;
+
+            await fs.writeFile(filePath, JSON.stringify(data, null, '\t'));
+            return true;
+        } catch (error) {
+            console.error(`❌ Failed to update lastChecked for ${provider}: ${error.message}`);
+            return false;
+        }
+    }
+
+    /**
      * Get storage directory for a provider
      * @param {string} provider - Provider name
      * @returns {string} Storage directory path

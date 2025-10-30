@@ -38,8 +38,7 @@ class PriceMonitor {
             this.crawlerManager = new CrawlerManager();
             this.changeDetector = new ChangeDetector();
             
-            // TODO: Initialize email notifications when configured
-            // this.emailNotifier = new EmailNotifier(this.config);
+            // Notifier kept for config tests
             this.emailNotifier = new EmailNotifier(this.config);
             
             this.crawlerManager.initializeCrawlers(this.config);
@@ -82,10 +81,6 @@ class PriceMonitor {
             
             console.log('\n💾 Step 4: Updating metadata...');
             await this.changeDetector.updateMetadataForChanges(changeResults.providersWithChanges);
-            
-            // TODO: Step 5 - Send notifications (requires email configuration)
-            console.log('\n⚠️  Step 5: Email notifications not configured - skipping notifications');
-            this.results.emailResults = [];
             
             const duration = Date.now() - startTime;
             console.log(`\n✅ Monitoring cycle completed in ${duration}ms`);

@@ -301,7 +301,7 @@ class JuroCrawler extends BaseCrawler {
                     updatedPdfUrls: pdfLinks.map(link => link.url),
                     updateType: 'full'
                 },
-                metadata: metadata
+                metadata: { publishDate: metadata.publishDate }
             };
             
             console.log(`📊 Consolidated Results:`);

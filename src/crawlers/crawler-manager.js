@@ -124,6 +124,18 @@ class CrawlerManager {
             
             if (changeResults.providersWithChanges.length === 0) {
                 console.log('🎉 No changes detected! Skipping PDF processing for all providers.');
+                // Touch lastChecked for all unchanged providers
+                try {
+                    const dataStorage = new DataStorage();
+                    const ts = new Date().toISOString();
+                    for (const p of changeResults.unchangedProviders) {
+                        if (p && p.provider) {
+                            await dataStorage.updateLastChecked(p.provider, ts);
+                        }
+                    }
+                } catch (touchErr) {
+                    console.warn(`⚠️  Failed to update lastChecked for unchanged providers: ${touchErr.message}`);
+                }
                 return {
                     results: [],
                     errors: [],
@@ -141,6 +153,19 @@ class CrawlerManager {
             
             // Update stored URLs for changed providers
             await this.changeDetector.updateStoredUrls(changeResults.providersWithChanges);
+
+            // Touch lastChecked for unchanged providers as well
+            try {
+                const dataStorage = new DataStorage();
+                const ts = new Date().toISOString();
+                for (const p of changeResults.unchangedProviders) {
+                    if (p && p.provider) {
+                        await dataStorage.updateLastChecked(p.provider, ts);
+                    }
+                }
+            } catch (touchErr) {
+                console.warn(`⚠️  Failed to update lastChecked for unchanged providers: ${touchErr.message}`);
+            }
             
             return {
                 results: fullCrawlResults.results,
@@ -225,6 +250,13 @@ class CrawlerManager {
             
             if (!providerHasChanges) {
                 console.log(`🎉 No changes detected for ${providerName}! No PDF processing needed.`);
+                // Touch lastChecked for this provider
+                try {
+                    const dataStorage = new DataStorage();
+                    await dataStorage.updateLastChecked(providerName, new Date().toISOString());
+                } catch (touchErr) {
+                    console.warn(`⚠️  Failed to update lastChecked for ${providerName}: ${touchErr.message}`);
+                }
                 return {
                     efficiencyGained: true,
                     skippedCrawls: 1,

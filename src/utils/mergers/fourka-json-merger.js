@@ -84,25 +84,46 @@ class FourKaJsonMerger {
             lastUpdate: newData.lastUpdate
         };
 
-        const existingPdfsMap = new Map();
-        if (existingData && existingData.pdfs) {
-            existingData.pdfs.forEach(pdf => {
-                existingPdfsMap.set(pdf.pdfUrl, pdf);
-            });
-        }
+        // Use a stable identity key for PDFs: pdfType (title-level identity)
+        const getIdentityKey = (pdf) => (pdf && pdf.pdfType ? pdf.pdfType.trim().toLowerCase() : pdf?.cennikName?.trim().toLowerCase() || pdf?.pdfUrl);
 
-        const newPdfUrls = new Set();
+        const newPdfKeys = new Set();
         if (newData.pdfs) {
             newData.pdfs.forEach(pdf => {
-                newPdfUrls.add(pdf.pdfUrl);
-                mergedData.pdfs.push(pdf);
-                console.log(`✅ Added/Updated PDF: ${pdf.pdfType} (${pdf.pdfUrl})`);
+                const key = getIdentityKey(pdf);
+                newPdfKeys.add(key);
             });
         }
 
+        // Build existing map by identity key to allow replacement when URL changes but type/title stays the same
+        const existingByKey = new Map();
         if (existingData && existingData.pdfs) {
             existingData.pdfs.forEach(pdf => {
-                if (!newPdfUrls.has(pdf.pdfUrl)) {
+                const key = getIdentityKey(pdf);
+                if (!existingByKey.has(key)) {
+                    existingByKey.set(key, pdf);
+                }
+            });
+        }
+
+        // First, add/replace new PDFs (these should overwrite any existing with same identity key)
+        if (newData.pdfs) {
+            newData.pdfs.forEach(pdf => {
+                const key = getIdentityKey(pdf);
+                mergedData.pdfs.push(pdf);
+                if (existingByKey.has(key)) {
+                    console.log(`♻️  Replaced existing PDF by identity '${pdf.pdfType}' with new URL ${pdf.pdfUrl}`);
+                } else {
+                    console.log(`✅ Added new PDF: ${pdf.pdfType} (${pdf.pdfUrl})`);
+                }
+            });
+        }
+
+        // Then, preserve only those existing PDFs whose identity key was not updated
+        if (existingData && existingData.pdfs) {
+            existingData.pdfs.forEach(pdf => {
+                const key = getIdentityKey(pdf);
+                if (!newPdfKeys.has(key)) {
                     mergedData.pdfs.push(pdf);
                     console.log(`📋 Preserved unchanged PDF: ${pdf.pdfType} (${pdf.pdfUrl})`);
                 }
@@ -118,8 +139,8 @@ class FourKaJsonMerger {
         console.log(`   Total PDFs: ${mergedData.totalPdfs}`);
         console.log(`   Successful: ${mergedData.successfulPdfs}`);
         console.log(`   Failed: ${mergedData.failedPdfs}`);
-        console.log(`   Updated: ${newPdfUrls.size}`);
-        console.log(`   Preserved: ${mergedData.totalPdfs - newPdfUrls.size}`);
+        console.log(`   Updated: ${newPdfKeys.size}`);
+        console.log(`   Preserved: ${mergedData.totalPdfs - newPdfKeys.size}`);
 
         return mergedData;
     }
