@@ -1,7 +1,7 @@
 {
 	"provider": "Tesco Mobile Slovakia",
-	"crawlDate": "2025-10-29T21:22:49.494Z",
-	"lastChecked": "2025-10-29T21:22:49.494Z",
+	"crawlDate": "2025-10-30T11:34:34.739Z",
+	"lastChecked": "2025-10-30T11:34:34.739Z",
 	"totalPdfs": 2,
 	"successfulPdfs": 2,
 	"failedPdfs": 0,
@@ -26,20 +26,9 @@
 			"validation": {
 				"isValid": true,
 				"errorCount": 0,
-				"warningCount": 10,
+				"warningCount": 0,
 				"errors": [],
-				"warnings": [
-					"Tesco general: Price 120€ seems too high (expected 50-)",
-					"Tesco general: Price 120€ seems too high (expected 50-)",
-					"Tesco general: Price 90€ seems too high (expected 50-)",
-					"Tesco general: Price 300€ seems too high (expected 50-)",
-					"Tesco general: Price 1000€ seems too high (expected 50-)",
-					"Tesco general: Price 300€ seems too high (expected 50-)",
-					"Tesco general: Price 1000€ seems too high (expected 50-)",
-					"Tesco general: Price 300€ seems too high (expected 50-)",
-					"Tesco general: Price 1000€ seems too high (expected 50-)",
-					"Tesco general: Price 300€ seems too high (expected 50-)"
-				]
+				"warnings": []
 			}
 		},
 		{
@@ -62,19 +51,9 @@
 			"validation": {
 				"isValid": true,
 				"errorCount": 0,
-				"warningCount": 9,
+				"warningCount": 0,
 				"errors": [],
-				"warnings": [
-					"Tesco general: Price 120€ seems too high (expected 50-)",
-					"Tesco general: Price 120€ seems too high (expected 50-)",
-					"Tesco general: Price 90€ seems too high (expected 50-)",
-					"Tesco general: Price 300€ seems too high (expected 50-)",
-					"Tesco general: Price 1000€ seems too high (expected 50-)",
-					"Tesco general: Price 300€ seems too high (expected 50-)",
-					"Tesco general: Price 1000€ seems too high (expected 50-)",
-					"Tesco general: Price 300€ seems too high (expected 50-)",
-					"Tesco general: Price 300€ seems too high (expected 50-)"
-				]
+				"warnings": []
 			}
 		}
 	],

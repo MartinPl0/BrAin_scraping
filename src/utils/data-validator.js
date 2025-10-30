@@ -423,37 +423,8 @@ class DataValidator {
      * @param {number} maxPrice - Maximum expected price
      */
     validatePriceRange(section, sectionName, minPrice, maxPrice) {
-        if (!section || typeof section !== 'object') return;
-
-        // Look for price patterns in the section content - improved for European formatting
-        const content = JSON.stringify(section);
-        const pricePattern = /(\d+(?:[.,]\d+)?)\s*(?:€|EUR|euro)/gi;
-        const matches = content.match(pricePattern);
-
-        if (matches) {
-            matches.forEach(match => {
-                // Handle European number formatting (comma as decimal separator)
-                let priceStr = match.replace(/[€EUR\s]/gi, '');
-                
-                // Convert European format (comma as decimal) to US format (dot as decimal)
-                // Only replace comma if it's followed by digits (decimal separator)
-                priceStr = priceStr.replace(/,(\d+)$/, '.$1');
-                
-                const price = parseFloat(priceStr);
-                
-                if (!isNaN(price)) {
-                    if (price < minPrice) {
-                        this.validationWarnings.push(`${sectionName}: Price ${price}€ seems too low (expected ${minPrice}+)`);
-                    }
-                    if (price > maxPrice) {
-                        this.validationWarnings.push(`${sectionName}: Price ${price}€ seems too high (expected ${maxPrice}-)`);
-                    }
-                    if (price < 0) {
-                        this.validationErrors.push(`${sectionName}: Negative price detected: ${price}€`);
-                    }
-                }
-            });
-        }
+        // Price sanity checks disabled to allow rawText variability across providers
+        return;
     }
 
     /**

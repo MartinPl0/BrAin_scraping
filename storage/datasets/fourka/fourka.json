@@ -1,7 +1,7 @@
 {
 	"provider": "fourka",
-	"crawlDate": "2025-10-29T21:05:51.976Z",
-	"lastChecked": "2025-10-29T21:05:51.976Z",
+	"crawlDate": "2025-10-30T11:34:57.589Z",
+	"lastChecked": "2025-10-30T11:34:57.589Z",
 	"totalPdfs": 9,
 	"successfulPdfs": 9,
 	"failedPdfs": 0,
@@ -23,16 +23,7 @@
 				"totalPages": 44,
 				"validation": {
 					"errors": [],
-					"warnings": [
-						"Fourka general: Price 300€ seems too high (expected 200-)",
-						"Fourka general: Price 300€ seems too high (expected 200-)",
-						"Fourka general: Price 300€ seems too high (expected 200-)",
-						"Fourka general: Price 300€ seems too high (expected 200-)",
-						"Fourka general: Price 300€ seems too high (expected 200-)",
-						"Fourka general: Price 300€ seems too high (expected 200-)",
-						"Fourka general: Price 300€ seems too high (expected 200-)",
-						"Fourka general: Price 300€ seems too high (expected 200-)"
-					],
+					"warnings": [],
 					"isValid": true
 				}
 			}
@@ -54,9 +45,7 @@
 				"totalPages": 2,
 				"validation": {
 					"errors": [],
-					"warnings": [
-						"Fourka general: Price 329.03€ seems too high (expected 200-)"
-					],
+					"warnings": [],
 					"isValid": true
 				}
 			}
@@ -188,12 +177,7 @@
 				"totalPages": 2,
 				"validation": {
 					"errors": [],
-					"warnings": [
-						"Fourka general: Price 300€ seems too high (expected 200-)",
-						"Fourka general: Price 300.01€ seems too high (expected 200-)",
-						"Fourka general: Price 550€ seems too high (expected 200-)",
-						"Fourka general: Price 550€ seems too high (expected 200-)"
-					],
+					"warnings": [],
 					"isValid": true
 				}
 			}
@@ -237,7 +221,7 @@
 		],
 		"updateType": "full"
 	},
-	"metadata": "2025-10-29T21:05:06.983Z",
+	"metadata": "2025-10-30T11:34:08.686Z",
 	"selectiveProcessing": {
 		"enabled": false,
 		"processedCount": 9,

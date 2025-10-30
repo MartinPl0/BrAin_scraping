@@ -1,7 +1,7 @@
 {
 	"provider": "RAD Slovakia",
-	"crawlDate": "2025-10-29T21:05:47.065Z",
-	"lastChecked": "2025-10-29T21:05:47.065Z",
+	"crawlDate": "2025-10-30T11:34:44.743Z",
+	"lastChecked": "2025-10-30T11:34:44.743Z",
 	"totalPdfs": 1,
 	"successfulPdfs": 1,
 	"failedPdfs": 0,
@@ -25,16 +25,9 @@
 			"validation": {
 				"isValid": true,
 				"errorCount": 0,
-				"warningCount": 6,
+				"warningCount": 0,
 				"errors": [],
-				"warnings": [
-					"RAD general: Price 180€ seems too high (expected 150-)",
-					"RAD general: Price 240€ seems too high (expected 150-)",
-					"RAD general: Price 300€ seems too high (expected 150-)",
-					"RAD general: Price 300€ seems too high (expected 150-)",
-					"RAD general: Price 300€ seems too high (expected 150-)",
-					"RAD general: Price 300€ seems too high (expected 150-)"
-				]
+				"warnings": []
 			}
 		}
 	],
@@ -46,6 +39,6 @@
 		"updateType": "full"
 	},
 	"metadata": {
-		"lastChecked": "2025-10-29T21:05:35.225Z"
+		"lastChecked": "2025-10-30T11:34:31.845Z"
 	}
 }

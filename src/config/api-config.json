@@ -21,6 +21,22 @@
       "name": "Orange Slovakia",
       "filePath": "storage/datasets/orange/orange.json"
     },
+    "funfon": {
+      "name": "Funfón Slovakia",
+      "filePath": "storage/datasets/funfon/funfon.json"
+    },
+    "juro": {
+      "name": "Juro Slovakia",
+      "filePath": "storage/datasets/juro/juro.json"
+    },
+    "okayfon": {
+      "name": "Okayfon Slovakia",
+      "filePath": "storage/datasets/okayfon/okayfon.json"
+    },
+    "rad": {
+      "name": "Radosť Slovakia",
+      "filePath": "storage/datasets/rad/rad.json"
+    },
     "fourka": {
       "name": "4ka Slovakia",
       "filePath": "storage/datasets/fourka/fourka.json",
