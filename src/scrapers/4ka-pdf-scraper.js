@@ -1,7 +1,7 @@
-const PdfDownloader = require('../utils/pdf-downloader');
+const PdfDownloader = require('../utils/pdf/pdf-downloader');
 const FourKaSectionExtractor = require('../extractors/4ka-section-extractor');
 const OrangeEuroExtractor = require('../extractors/orange-euro-extractor');
-const DataValidator = require('../utils/data-validator');
+const DataValidator = require('../utils/data/data-validator');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -28,7 +28,7 @@ class FourKaPdfScraper {
         
         try {
             if (!cennikName) {
-                const { loadConfig } = require('../utils/config-loader');
+                const { loadConfig } = require('../utils/core/config-loader');
                 const config = loadConfig();
                 cennikName = config.providers?.fourka?.displayName || '4ka Cenník služieb';
             }
@@ -113,13 +113,21 @@ class FourKaPdfScraper {
                 consolidatedRawText = sections.fullContent;
             }
             
+            // Build extractionInfo for validator (especially important for ToC mode)
+            const extractionInfo = {
+                extractionMethod: summary.extractionMethod || 'unknown',
+                pagesWithEuro: summary.pagesWithEuro || 0,
+                totalPages: summary.totalPages || 0
+            };
+            
             const enrichedData = {
                 cennikName: cennikName,
                 pdfUrl: pdfUrl,
                 rawText: consolidatedRawText,
                 data: {
                     sections: sections,
-                    summary: summary
+                    summary: summary,
+                    extractionInfo: extractionInfo
                 },
                 scrapedAt: new Date().toISOString(),
                 metadata: {
@@ -232,7 +240,7 @@ class FourKaPdfScraper {
      */
     getExtractionMethod(category = null) {
         try {
-            const { loadConfig } = require('../utils/config-loader');
+            const { loadConfig } = require('../utils/core/config-loader');
             const config = loadConfig();
             const fourkaConfig = config.providers?.fourka;
             
@@ -259,7 +267,7 @@ class FourKaPdfScraper {
      */
     getPdfSections(cennikName) {
         try {
-            const { loadConfig } = require('../utils/config-loader');
+            const { loadConfig } = require('../utils/core/config-loader');
             const config = loadConfig();
             const fourkaConfig = config.providers?.fourka;
             

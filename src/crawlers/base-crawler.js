@@ -1,6 +1,6 @@
 const puppeteer = require('puppeteer');
 const cheerio = require('cheerio');
-const DynamicWaiter = require('../utils/dynamic-waiter');
+const DynamicWaiter = require('../utils/web/dynamic-waiter');
 
 /**
  * Base crawler class for monitoring telecom provider websites

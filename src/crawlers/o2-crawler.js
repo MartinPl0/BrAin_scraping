@@ -168,15 +168,13 @@ class O2Crawler extends BaseCrawler {
                         summary: extractedData.summary,
                         extractionInfo: extractedData.extractionInfo
                     },
-                    summary: extractedData.summary,
-                    validation: extractedData.metadata?.validation,
-                    extractionInfo: extractedData.extractionInfo
+                    validation: extractedData.metadata?.validation
                 };
                 
                 console.log(`📊 PDF Data Structure for O2 Cenník služieb:`);
                 console.log(`   - Has rawText: ${!!pdfData.rawText}`);
-                console.log(`   - Has summary: ${!!pdfData.summary}`);
-                console.log(`   - Has extractionInfo: ${!!pdfData.extractionInfo}`);
+                console.log(`   - Has data.summary: ${!!pdfData.data?.summary}`);
+                console.log(`   - Has data.extractionInfo: ${!!pdfData.data?.extractionInfo}`);
                 console.log(`   - Raw text length: ${pdfData.rawText.length} characters`);
                 
                 if (!pdfData.rawText || pdfData.rawText.trim().length === 0) {

@@ -1,4 +1,4 @@
-const PageExtractor = require('../page-extractor');
+const PageExtractor = require('../../web/page-extractor');
 
 /**
  * RAD-specific Table of Contents parser

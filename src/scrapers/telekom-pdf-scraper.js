@@ -1,7 +1,7 @@
-const PdfDownloader = require('../utils/pdf-downloader');
+const PdfDownloader = require('../utils/pdf/pdf-downloader');
 const TelekomSectionExtractor = require('../extractors/telekom-section-extractor');
 const DataStorage = require('../storage/data-storage');
-const DataValidator = require('../utils/data-validator');
+const DataValidator = require('../utils/data/data-validator');
 
 /**
  * Telekom PDF Scraper for Telekom Slovakia price lists
@@ -27,7 +27,7 @@ class TelekomPdfScraper {
     async scrapePdf(pdfUrl, cennikName = null, localPdfPath = null, skipStorage = false) {
         try {
             if (!cennikName) {
-                const { loadConfig } = require('../utils/config-loader');
+                const { loadConfig } = require('../utils/core/config-loader');
                 const config = loadConfig();
                 cennikName = config.providers?.telekom?.displayName || 'Telekom Cenník služieb';
             }

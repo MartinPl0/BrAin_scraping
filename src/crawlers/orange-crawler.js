@@ -1,6 +1,6 @@
 const BaseCrawler = require('./base-crawler');
 const cheerio = require('cheerio');
-const OrangeJsonMerger = require('../utils/mergers/orange-json-merger');
+const OrangeJsonMerger = require('../utils/data/mergers/orange-json-merger');
 
 /**
  * Orange Slovakia specific crawler
@@ -316,7 +316,7 @@ class OrangeCrawler extends BaseCrawler {
                         cennikName: extractedData.cennikName || `Orange Cenník služieb - ${pdfLink.pdfType}`,
                         pdfUrl: pdfLink.url,
                         pdfType: pdfLink.pdfType,
-                        rawText: extractedData.data?.sections?.fullContent || '',
+                        rawText: extractedData.rawText || extractedData.data?.sections?.fullContent || '',
                         summary: extractedData.summary,
                         extractionInfo: extractedData.extractionInfo,
                         validation: extractedData.metadata?.validation

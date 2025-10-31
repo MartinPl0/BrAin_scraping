@@ -500,7 +500,7 @@ class FourKaCrawler extends BaseCrawler {
             console.log(`📄 Found ${pdfLinks.length} unique PDF links for 4ka`);
             
             // Check if consolidated file exists to determine processing strategy
-            const FourKaJsonMerger = require('../utils/mergers/fourka-json-merger');
+            const FourKaJsonMerger = require('../utils/data/mergers/fourka-json-merger');
             const jsonMerger = new FourKaJsonMerger();
             const existingData = await jsonMerger.loadExistingData();
             
@@ -526,16 +526,97 @@ class FourKaCrawler extends BaseCrawler {
                     const fourKaScraper = new FourKaPdfScraper(this.errorMonitor);
                     const extractedData = await fourKaScraper.scrapePdf(pdfLink.url, `4ka ${pdfLink.pdfType}`, null, true, pdfLink.category);
                     
-                    const pdfData = {
+                    // Decide structure per-PDF strictly by extraction method
+                    // Check all possible locations (scraper provides data.extractionInfo now)
+                    const detectedMethod = extractedData.summary?.extractionMethod
+                        || extractedData.data?.extractionInfo?.extractionMethod
+                        || extractedData.data?.extractionInfo?.method
+                        || extractedData.extractionInfo?.extractionMethod
+                        || extractedData.extractionInfo?.method
+                        || 'unknown';
+                    const isToc = detectedMethod === 'toc-guided-header';
+
+                    const baseFields = {
                         cennikName: extractedData.cennikName || `4ka ${pdfLink.pdfType}`,
                         pdfUrl: pdfLink.url,
                         pdfType: pdfLink.pdfType,
                         category: pdfLink.category,
-                        rawText: extractedData.rawText || extractedData.data?.sections?.fullContent || '',
-                        summary: extractedData.summary,
-                        extractionInfo: extractedData.extractionInfo,
-                        validation: extractedData.metadata?.validation
+                        rawText: extractedData.rawText || extractedData.data?.sections?.fullContent || ''
                     };
+
+                    // Avoid duplicating extractionMethod inside summary; keep it in extractionInfo only
+                    // Also filter ALL stale validation warnings from summary (they're incorrect - we provide extractionInfo correctly)
+                    const sanitizedSummary = extractedData.summary ? { ...extractedData.summary } : undefined;
+                    if (sanitizedSummary) {
+                        if ('extractionMethod' in sanitizedSummary) delete sanitizedSummary.extractionMethod;
+                        // Filter stale validator warnings from summary.validation.warnings (embedded in summary object)
+                        if (sanitizedSummary.validation && Array.isArray(sanitizedSummary.validation.warnings)) {
+                            sanitizedSummary.validation.warnings = sanitizedSummary.validation.warnings.filter(w => {
+                                const s = String(w).toLowerCase();
+                                // Remove warnings about missing data.extractionInfo - we provide it correctly based on mode
+                                return !(s.includes('data.extractioninfo') || s.includes('missing data.extractioninfo'));
+                            });
+                            // Clean up empty validation objects
+                            if (
+                                sanitizedSummary.validation.warnings.length === 0 &&
+                                (!sanitizedSummary.validation.errors || sanitizedSummary.validation.errors.length === 0)
+                            ) {
+                                delete sanitizedSummary.validation;
+                            }
+                        }
+                    }
+
+                    let pdfData;
+                    if (isToc) {
+                        // Filter stale warnings for ToC mode (we provide data.extractionInfo now)
+                        const filteredValidation = (() => {
+                            const v = extractedData.metadata?.validation ? { ...extractedData.metadata.validation } : undefined;
+                            if (v && Array.isArray(v.warnings)) {
+                                v.warnings = v.warnings.filter(w => !String(w).toLowerCase().includes('data.extractioninfo'));
+                            }
+                            return v;
+                        })();
+                        // ToC-based: keep data wrapper and avoid root duplicates
+                        // Use extractionInfo from scraper if available, otherwise build from summary
+                        const tocExtractionInfo = extractedData.data?.extractionInfo || {
+                            extractionMethod: detectedMethod,
+                            pagesWithEuro: extractedData.summary?.pagesWithEuro,
+                            totalPages: extractedData.summary?.totalPages
+                        };
+                        
+                        pdfData = {
+                            ...baseFields,
+                            data: {
+                                sections: extractedData.data?.sections || {},
+                                summary: sanitizedSummary,
+                                extractionInfo: tocExtractionInfo
+                            },
+                            validation: filteredValidation
+                        };
+                    } else {
+                        // Filter stale warnings for Simple mode (no data.* expected)
+                        const filteredValidation = (() => {
+                            const v = extractedData.metadata?.validation ? { ...extractedData.metadata.validation } : undefined;
+                            if (v && Array.isArray(v.warnings)) {
+                                v.warnings = v.warnings.filter(w => {
+                                    const s = String(w).toLowerCase();
+                                    return !(s.includes('data.summary') || s.includes('data.extractioninfo'));
+                                });
+                            }
+                            return v;
+                        })();
+                        // Simple: root-level summary/extractionInfo
+                        pdfData = {
+                            ...baseFields,
+                            summary: sanitizedSummary,
+                            extractionInfo: {
+                                extractionMethod: detectedMethod,
+                                pagesWithEuro: extractedData.summary?.pagesWithEuro,
+                                totalPages: extractedData.summary?.totalPages
+                            },
+                            validation: filteredValidation
+                        };
+                    }
                     
                     console.log(`📊 PDF Data Structure for ${pdfLink.pdfType}:`);
                     console.log(`   - Has rawText: ${!!pdfData.rawText}`);

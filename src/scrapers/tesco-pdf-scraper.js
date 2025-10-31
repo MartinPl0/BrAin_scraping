@@ -1,8 +1,8 @@
-const PdfDownloader = require('../utils/pdf-downloader');
+const PdfDownloader = require('../utils/pdf/pdf-downloader');
 const TescoSectionExtractor = require('../extractors/tesco-section-extractor');
 const OrangeEuroExtractor = require('../extractors/orange-euro-extractor');
 const DataStorage = require('../storage/data-storage');
-const DataValidator = require('../utils/data-validator');
+const DataValidator = require('../utils/data/data-validator');
 
 /**
  * Tesco Mobile PDF Scraper for Tesco Mobile Slovakia price lists
@@ -29,7 +29,7 @@ class TescoPdfScraper {
     async scrapePdf(pdfUrl, cennikName = null, localPdfPath = null, skipStorage = false) {
         try {
             if (!cennikName) {
-                const { loadConfig } = require('../utils/config-loader');
+                const { loadConfig } = require('../utils/core/config-loader');
                 const config = loadConfig();
                 cennikName = config.providers?.tesco?.displayName || 'Tesco Mobile Cenník služieb';
             }
@@ -49,7 +49,7 @@ class TescoPdfScraper {
                 pdfFilePath = localPdfPath;
             }
             
-            const { loadConfig } = require('../utils/config-loader');
+            const { loadConfig } = require('../utils/core/config-loader');
             const config = loadConfig();
             const extractionMethod = config.providers?.tesco?.extractionMethod || 'euro-symbol-based';
             

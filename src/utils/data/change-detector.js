@@ -10,8 +10,9 @@ const axios = require('axios');
  */
 class ChangeDetector {
     constructor() {
-        this.metadataFile = path.join(__dirname, '..', '..', 'storage', 'metadata', 'latest-pdf-urls.json');
-        this.hashMetadataFile = path.join(__dirname, '..', '..', 'storage', 'metadata', 'latest-pdf-hashes.json');
+        const { getMetadataUrlFile, getMetadataHashFile } = require('../core/paths');
+        this.metadataFile = getMetadataUrlFile();
+        this.hashMetadataFile = getMetadataHashFile();
         this.ensureMetadataDir();
     }
 

@@ -309,13 +309,23 @@ class OkayfonCrawler extends BaseCrawler {
                 }
             }
             
-            return {
+            // Create consolidated result matching the structure used by other providers
+            const consolidatedResult = {
                 provider: 'okayfon',
-                pdfs: results,
+                crawlDate: new Date().toISOString(),
+                lastChecked: new Date().toISOString(),
                 totalPdfs: results.length,
                 successfulPdfs: results.filter(r => !r.error).length,
-                failedPdfs: results.filter(r => r.error).length
+                failedPdfs: results.filter(r => r.error).length,
+                pdfs: results,
+                lastUpdate: {
+                    updatedPdfs: results.length,
+                    updatedPdfUrls: results.map(r => r.pdfUrl).filter(url => url),
+                    updateType: 'full'
+                }
             };
+
+            return consolidatedResult;
             
         } catch (error) {
             console.error(`❌ Error processing Okay fón PDFs:`, error.message);
@@ -365,12 +375,7 @@ class OkayfonCrawler extends BaseCrawler {
                     cennikName: extractedData.cennikName || `Okay fón Cenník dátových balíkov`,
                     pdfUrl: primaryPdf.url,
                     pdfType: primaryPdf.pdfType,
-                    rawText: extractedData.data?.sections?.fullContent || '',
-                    data: {
-                        sections: extractedData.data?.sections || {},
-                        summary: extractedData.summary,
-                        extractionInfo: extractedData.extractionInfo
-                    },
+                    rawText: extractedData.rawText || extractedData.data?.sections?.fullContent || '',
                     summary: extractedData.summary,
                     extractionInfo: extractedData.extractionInfo,
                     validation: extractedData.metadata?.validation
@@ -380,11 +385,29 @@ class OkayfonCrawler extends BaseCrawler {
                 console.warn(`⚠️  No PDF links found for ${this.providerName}.`);
             }
 
-            return {
+            // Create consolidated result matching the structure used by other providers
+            const consolidatedResult = {
                 provider: this.providerName,
+                crawlDate: new Date().toISOString(),
+                lastChecked: new Date().toISOString(),
+                totalPdfs: results.length,
+                successfulPdfs: results.filter(pdf => !pdf.error).length,
+                failedPdfs: results.filter(pdf => pdf.error).length,
                 pdfs: results,
+                lastUpdate: {
+                    updatedPdfs: results.length,
+                    updatedPdfUrls: results.map(pdf => pdf.pdfUrl).filter(url => url),
+                    updateType: 'full'
+                },
                 metadata: metadata
             };
+
+            console.log(`📊 Consolidated Results:`);
+            console.log(`   Total PDFs: ${consolidatedResult.totalPdfs}`);
+            console.log(`   Successful: ${consolidatedResult.successfulPdfs}`);
+            console.log(`   Failed: ${consolidatedResult.failedPdfs}`);
+
+            return consolidatedResult;
         } catch (error) {
             console.error(`❌ Error during crawl for ${this.providerName}:`, error.message);
             return {

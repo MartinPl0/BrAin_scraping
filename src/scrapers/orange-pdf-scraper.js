@@ -1,8 +1,8 @@
-const PdfDownloader = require('../utils/pdf-downloader');
+const PdfDownloader = require('../utils/pdf/pdf-downloader');
 const OrangeSectionExtractor = require('../extractors/orange-section-extractor');
 const OrangeEuroExtractor = require('../extractors/orange-euro-extractor');
 const DataStorage = require('../storage/data-storage');
-const DataValidator = require('../utils/data-validator');
+const DataValidator = require('../utils/data/data-validator');
 
 /**
  * Orange PDF Scraper for Orange Slovakia price lists
@@ -29,7 +29,7 @@ class OrangePdfScraper {
     async scrapePdf(pdfUrl, cennikName = null, localPdfPath = null, skipStorage = false) {
         try {
             if (!cennikName) {
-                const { loadConfig } = require('../utils/config-loader');
+                const { loadConfig } = require('../utils/core/config-loader');
                 const config = loadConfig();
                 cennikName = config.providers?.orange?.displayName || 'Orange Cenník služieb';
             }
@@ -49,7 +49,7 @@ class OrangePdfScraper {
                 pdfFilePath = localPdfPath;
             }
             
-            const { loadConfig } = require('../utils/config-loader');
+            const { loadConfig } = require('../utils/core/config-loader');
             const config = loadConfig();
             const extractionMethod = config.providers?.orange?.extractionMethod || 'simple-full-text';
             
@@ -100,9 +100,13 @@ class OrangePdfScraper {
             const sections = extractionResult.sections || {};
             const extractionInfo = extractionResult.extractionInfo || {};
             
+            // Extract rawText from fullContent for validator and crawler
+            const rawText = sections.fullContent || '';
+            
             const enrichedData = {
                 cennikName: cennikName,
                 pdfUrl: localPdfPath ? `LOCAL: ${localPdfPath}` : pdfUrl,
+                rawText: rawText,
                 data: {
                     sections: sections,
                     summary: summary,

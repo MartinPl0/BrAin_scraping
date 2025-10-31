@@ -1,7 +1,7 @@
-const TocParser = require('../utils/parsers/o2-toc-parser');
-const PageExtractor = require('../utils/page-extractor');
-const HeaderBasedExtractor = require('../utils/extractors/o2-header-extractor');
-const { loadConfig } = require('../utils/config-loader');
+const TocParser = require('../utils/pdf/parsers/o2-toc-parser');
+const PageExtractor = require('../utils/web/page-extractor');
+const HeaderBasedExtractor = require('../utils/pdf/extractors/o2-header-extractor');
+const { loadConfig } = require('../utils/core/config-loader');
 
 /**
  * Section Text Extractor for O2 PDF

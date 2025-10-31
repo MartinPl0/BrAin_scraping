@@ -1,7 +1,7 @@
-const FunfonTocParser = require('../utils/parsers/funfon-toc-parser');
-const PageExtractor = require('../utils/page-extractor');
-const TelekomHeaderExtractor = require('../utils/extractors/telekom-header-extractor');
-const { loadConfig } = require('../utils/config-loader');
+const FunfonTocParser = require('../utils/pdf/parsers/funfon-toc-parser');
+const PageExtractor = require('../utils/web/page-extractor');
+const TelekomHeaderExtractor = require('../utils/pdf/extractors/telekom-header-extractor');
+const { loadConfig } = require('../utils/core/config-loader');
 
 /**
  * Section Text Extractor for Funfon PDF

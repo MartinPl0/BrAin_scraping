@@ -222,13 +222,25 @@ class RadCrawler extends BaseCrawler {
                     });
                 }
                 
+                // Normalize extractionInfo and summary
+                const normalizedExtractionInfo = (() => {
+                    const info = extractedData.extractionInfo ? { ...extractedData.extractionInfo } : {};
+                    if (info.method && !info.extractionMethod) {
+                        info.extractionMethod = info.method;
+                        delete info.method;
+                    }
+                    return info;
+                })();
+                const sanitizedSummary = extractedData.summary ? { ...extractedData.summary } : undefined;
+                if (sanitizedSummary && 'extractionMethod' in sanitizedSummary) delete sanitizedSummary.extractionMethod;
+
                 const pdfData = {
                     cennikName: extractedData.cennikName || `RAD Cenník služieb`,
                     pdfUrl: primaryPdf.url,
                     pdfType: 'Cenník služieb',
                     rawText: consolidatedRawText.trim(),
-                    summary: extractedData.summary,
-                    extractionInfo: extractedData.extractionInfo,
+                    summary: sanitizedSummary,
+                    extractionInfo: normalizedExtractionInfo,
                     validation: extractedData.metadata?.validation
                 };
                 

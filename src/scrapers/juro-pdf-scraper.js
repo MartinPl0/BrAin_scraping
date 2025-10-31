@@ -1,7 +1,7 @@
-const PdfDownloader = require('../utils/pdf-downloader');
+const PdfDownloader = require('../utils/pdf/pdf-downloader');
 const OrangeEuroExtractor = require('../extractors/orange-euro-extractor');
 const DataStorage = require('../storage/data-storage');
-const DataValidator = require('../utils/data-validator');
+const DataValidator = require('../utils/data/data-validator');
 
 /**
  * Juro PDF Scraper for Juro Slovakia price lists
@@ -27,7 +27,7 @@ class JuroPdfScraper {
     async scrapePdf(pdfUrl, cennikName = null, localPdfPath = null, skipStorage = false) {
         try {
             if (!cennikName) {
-                const { loadConfig } = require('../utils/config-loader');
+                const { loadConfig } = require('../utils/core/config-loader');
                 const config = loadConfig();
                 cennikName = config.providers?.juro?.displayName || 'Juro Cenník služieb';
             }

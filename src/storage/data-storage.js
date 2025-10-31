@@ -1,6 +1,6 @@
 const fs = require('fs').promises;
 const path = require('path');
-const { loadConfig } = require('../utils/config-loader');
+const { loadConfig } = require('../utils/core/config-loader');
 
 /**
  * Data Storage Manager

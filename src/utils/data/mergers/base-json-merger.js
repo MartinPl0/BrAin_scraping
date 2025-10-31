@@ -2,13 +2,22 @@ const fs = require('fs').promises;
 const path = require('path');
 
 /**
- * Orange JSON Merger
- * Handles merging of Orange consolidated JSON data to preserve unchanged PDFs
- * when only some PDFs are updated during selective processing
+ * Base JSON Merger
+ * Provides shared functionality for merging consolidated JSON data across providers
+ * Subclasses implement provider-specific identity key strategies and selective detection
  */
-class OrangeJsonMerger {
-    constructor() {
-        this.storageDir = path.join(__dirname, '..', '..', '..', 'storage', 'datasets', 'orange');
+class BaseJsonMerger {
+    /**
+     * Constructor - subclasses should call super() and set this.providerName
+     * @param {string} providerName - Provider name (e.g., 'tesco', 'orange', 'fourka')
+     */
+    constructor(providerName) {
+        if (new.target === BaseJsonMerger) {
+            throw new Error('BaseJsonMerger is abstract and cannot be instantiated directly');
+        }
+        this.providerName = providerName;
+        const { getStorageDir } = require('../../core/paths');
+        this.storageDir = getStorageDir(providerName);
     }
 
     /**
@@ -19,12 +28,11 @@ class OrangeJsonMerger {
         try {
             const files = await fs.readdir(this.storageDir);
             
-            const consolidatedFiles = files.filter(file => 
-                file === 'orange.json'
-            );
+            const fileName = this.getFileName();
+            const consolidatedFiles = files.filter(file => file === fileName);
             
             if (consolidatedFiles.length === 0) {
-                console.log('📄 No existing consolidated Orange JSON found');
+                console.log(`📄 No existing consolidated ${this.getProviderDisplayName()} JSON found`);
                 return null;
             }
             
@@ -65,12 +73,13 @@ class OrangeJsonMerger {
 
     /**
      * Merge new PDF data with existing consolidated data
+     * Uses provider-specific identity key strategy
      * @param {Object} newData - New consolidated data from selective processing
      * @param {Object} existingData - Existing consolidated data
      * @returns {Object} Merged consolidated data
      */
     mergeConsolidatedData(newData, existingData) {
-        console.log(`🔄 Merging Orange consolidated data...`);
+        console.log(`🔄 Merging ${this.getProviderDisplayName()} consolidated data...`);
         
         const mergedData = {
             provider: newData.provider,
@@ -83,8 +92,8 @@ class OrangeJsonMerger {
             lastUpdate: newData.lastUpdate
         };
 
-        // Identity key: prefer pdfType, fallback to cennikName, else url
-        const getIdentityKey = (pdf) => (pdf && pdf.pdfType ? pdf.pdfType.trim().toLowerCase() : pdf?.cennikName?.trim().toLowerCase() || pdf?.pdfUrl);
+        // Use provider-specific identity key strategy
+        const getIdentityKey = (pdf) => this.getIdentityKey(pdf);
 
         const newPdfKeys = new Set();
         if (newData.pdfs) {
@@ -98,30 +107,32 @@ class OrangeJsonMerger {
         if (existingData && existingData.pdfs) {
             existingData.pdfs.forEach(pdf => {
                 const key = getIdentityKey(pdf);
-                if (!existingByKey.has(key)) existingByKey.set(key, pdf);
+                if (!existingByKey.has(key)) {
+                    existingByKey.set(key, pdf);
+                }
             });
         }
 
-        // Add/replace new
+        // Add/replace new PDFs
         if (newData.pdfs) {
             newData.pdfs.forEach(pdf => {
                 const key = getIdentityKey(pdf);
                 mergedData.pdfs.push(pdf);
                 if (existingByKey.has(key)) {
-                    console.log(`♻️  Replaced existing PDF by identity '${pdf.pdfType}' with new URL ${pdf.pdfUrl}`);
+                    console.log(`♻️  Replaced existing PDF by identity '${pdf.pdfType || pdf.cennikName || pdf.pdfUrl}' with new URL ${pdf.pdfUrl}`);
                 } else {
-                    console.log(`✅ Added new PDF: ${pdf.pdfType} (${pdf.pdfUrl})`);
+                    console.log(`✅ Added new PDF: ${pdf.pdfType || pdf.cennikName || pdf.pdfUrl} (${pdf.pdfUrl})`);
                 }
             });
         }
 
-        // Preserve unchanged by identity
+        // Preserve unchanged PDFs
         if (existingData && existingData.pdfs) {
             existingData.pdfs.forEach(pdf => {
                 const key = getIdentityKey(pdf);
                 if (!newPdfKeys.has(key)) {
                     mergedData.pdfs.push(pdf);
-                    console.log(`📋 Preserved unchanged PDF: ${pdf.pdfType} (${pdf.pdfUrl})`);
+                    console.log(`📋 Preserved unchanged PDF: ${pdf.pdfType || pdf.cennikName || pdf.pdfUrl} (${pdf.pdfUrl})`);
                 }
             });
         }
@@ -143,22 +154,29 @@ class OrangeJsonMerger {
 
     /**
      * Save merged consolidated data
+     * Subclasses can override to add provider-specific functionality (e.g., debug files)
      * @param {Object} mergedData - Merged consolidated data
      * @returns {Promise<Object>} Save result information
      */
     async saveMergedData(mergedData) {
         try {
-            const fileName = `orange.json`;
+            const fileName = this.getFileName();
             const filePath = path.join(this.storageDir, fileName);
+            
+            // Ensure directory exists
+            await fs.mkdir(this.storageDir, { recursive: true });
             
             await fs.writeFile(filePath, JSON.stringify(mergedData, null, '\t'));
             
             console.log(`💾 Merged data saved to: ${fileName}`);
             
+            // Allow subclasses to add additional save operations (e.g., debug files)
+            await this.afterSave(mergedData, filePath);
+            
             return {
                 filePath: fileName,
                 fullPath: filePath,
-                provider: 'orange',
+                provider: this.providerName,
                 totalPdfs: mergedData.totalPdfs,
                 successfulPdfs: mergedData.successfulPdfs,
                 failedPdfs: mergedData.failedPdfs
@@ -171,20 +189,24 @@ class OrangeJsonMerger {
     }
 
     /**
-     * Process selective update for Orange consolidated JSON
+     * Process selective update for consolidated JSON
+     * Uses provider-specific selective detection logic
      * @param {Object} newData - New consolidated data from selective processing
      * @returns {Promise<Object>} Final merged consolidated data
      */
     async processSelectiveUpdate(newData) {
         try {
-            console.log(`🔄 Processing selective update for Orange...`);
+            console.log(`🔄 Processing selective update for ${this.getProviderDisplayName()}...`);
             
-            if (!newData.selectiveProcessing || !newData.selectiveProcessing.enabled) {
+            const isSelective = this.detectSelectiveProcessing(newData);
+            
+            if (!isSelective) {
                 console.log(`📄 Full processing detected, no merging needed`);
                 return await this.saveMergedData(newData);
             }
             
-            console.log(`🎯 Selective processing detected: ${newData.selectiveProcessing.processedCount}/${newData.selectiveProcessing.totalAvailable} PDFs`);
+            const selectiveInfo = this.getSelectiveProcessingInfo(newData);
+            console.log(`🎯 Selective processing detected: ${selectiveInfo.message}`);
             
             const existingData = await this.loadExistingData();
             
@@ -199,11 +221,12 @@ class OrangeJsonMerger {
             const saveResult = await this.saveMergedData(mergedData);
             
             console.log(`✅ Selective update completed successfully`);
+            
             return {
                 ...saveResult,
                 merged: true,
-                updatedPdfs: newData.selectiveProcessing.processedCount,
-                preservedPdfs: mergedData.totalPdfs - newData.selectiveProcessing.processedCount
+                updatedPdfs: selectiveInfo.updatedPdfs,
+                preservedPdfs: mergedData.totalPdfs - selectiveInfo.updatedPdfs
             };
             
         } catch (error) {
@@ -226,15 +249,18 @@ class OrangeJsonMerger {
                 };
             }
             
-            return {
+            const stats = {
                 hasData: true,
                 totalPdfs: existingData.totalPdfs || 0,
                 successfulPdfs: existingData.successfulPdfs || 0,
                 failedPdfs: existingData.failedPdfs || 0,
                 lastCrawlDate: existingData.crawlDate,
-                pdfTypes: existingData.pdfs ? existingData.pdfs.map(pdf => pdf.pdfType) : [],
-                selectiveProcessing: existingData.selectiveProcessing
+                pdfTypes: existingData.pdfs ? existingData.pdfs.map(pdf => pdf.pdfType) : []
             };
+            
+            // Add provider-specific stats
+            const additionalStats = this.getAdditionalStatistics(existingData);
+            return { ...stats, ...additionalStats };
             
         } catch (error) {
             console.error(`❌ Failed to get data statistics: ${error.message}`);
@@ -244,6 +270,74 @@ class OrangeJsonMerger {
             };
         }
     }
+
+    // ==================== Abstract Methods - Must be implemented by subclasses ====================
+
+    /**
+     * Get identity key for a PDF (for merging)
+     * @param {Object} pdf - PDF object
+     * @returns {string} Identity key
+     */
+    getIdentityKey(pdf) {
+        throw new Error('getIdentityKey() must be implemented by subclass');
+    }
+
+    /**
+     * Get JSON file name for this provider
+     * @returns {string} File name (e.g., 'tesco.json')
+     */
+    getFileName() {
+        throw new Error('getFileName() must be implemented by subclass');
+    }
+
+    /**
+     * Detect if this is a selective processing update
+     * @param {Object} newData - New consolidated data
+     * @returns {boolean} True if selective processing
+     */
+    detectSelectiveProcessing(newData) {
+        throw new Error('detectSelectiveProcessing() must be implemented by subclass');
+    }
+
+    /**
+     * Get selective processing information for logging
+     * @param {Object} newData - New consolidated data
+     * @returns {Object} Object with message and updatedPdfs count
+     */
+    getSelectiveProcessingInfo(newData) {
+        throw new Error('getSelectiveProcessingInfo() must be implemented by subclass');
+    }
+
+    /**
+     * Get provider display name for logging
+     * @returns {string} Display name (e.g., 'Tesco Mobile')
+     */
+    getProviderDisplayName() {
+        return this.providerName.charAt(0).toUpperCase() + this.providerName.slice(1);
+    }
+
+    /**
+     * Hook for additional save operations (e.g., debug files)
+     * Override in subclass if needed
+     * @param {Object} mergedData - Merged consolidated data
+     * @param {string} filePath - Path where main file was saved
+     * @returns {Promise<void>}
+     */
+    async afterSave(mergedData, filePath) {
+        // Default: no additional operations
+    }
+
+    /**
+     * Get additional statistics specific to provider
+     * Override in subclass if needed
+     * @param {Object} existingData - Existing consolidated data
+     * @returns {Object} Additional statistics
+     */
+    getAdditionalStatistics(existingData) {
+        // Default: no additional stats
+        return {};
+    }
 }
 
-module.exports = OrangeJsonMerger;
+module.exports = BaseJsonMerger;
+

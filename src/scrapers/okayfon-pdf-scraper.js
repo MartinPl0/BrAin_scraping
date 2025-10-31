@@ -1,7 +1,7 @@
-const PdfDownloader = require('../utils/pdf-downloader');
+const PdfDownloader = require('../utils/pdf/pdf-downloader');
 const OrangeEuroExtractor = require('../extractors/orange-euro-extractor');
 const DataStorage = require('../storage/data-storage');
-const DataValidator = require('../utils/data-validator');
+const DataValidator = require('../utils/data/data-validator');
 
 /**
  * Okay fón PDF Scraper for Okay fón Slovakia price lists
@@ -27,7 +27,7 @@ class OkayfonPdfScraper {
     async scrapePdf(pdfUrl, cennikName = null, localPdfPath = null, skipStorage = false) {
         try {
             if (!cennikName) {
-                const { loadConfig } = require('../utils/config-loader');
+                const { loadConfig } = require('../utils/core/config-loader');
                 const config = loadConfig();
                 cennikName = config.providers?.okayfon?.displayName || 'Okay fón Cenník dátových balíkov';
             }
@@ -85,9 +85,13 @@ class OkayfonPdfScraper {
             const sections = extractionResult.sections || {};
             const extractionInfo = extractionResult.extractionInfo || {};
             
+            // Extract rawText from fullContent for validator and crawler
+            const rawText = sections.fullContent || '';
+            
             const enrichedData = {
                 cennikName: cennikName,
                 pdfUrl: localPdfPath ? `LOCAL: ${localPdfPath}` : pdfUrl,
+                rawText: rawText,
                 data: {
                     sections: sections,
                     summary: summary,

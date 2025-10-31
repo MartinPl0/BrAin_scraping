@@ -1,6 +1,6 @@
-const { loadConfig } = require('./utils/config-loader');
+const { loadConfig } = require('./utils/core/config-loader');
 const CrawlerManager = require('./crawlers/crawler-manager');
-const ChangeDetector = require('./utils/change-detector');
+const ChangeDetector = require('./utils/data/change-detector');
 const EmailNotifier = require('./notifications/email-notifier');
 const O2PdfScraper = require('./scrapers/o2-pdf-scraper');
 const TelekomPdfScraper = require('./scrapers/telekom-pdf-scraper');

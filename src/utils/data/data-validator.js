@@ -2,6 +2,9 @@
  * Data Validator for PDF Extraction Results
  * Validates extracted data to prevent garbage data from reaching production
  */
+
+const VALIDATION_CONSTANTS = require('../core/validation-constants');
+
 class DataValidator {
     constructor() {
         this.validationErrors = [];
@@ -57,8 +60,6 @@ class DataValidator {
                 console.warn(`⚠️  Unknown provider: ${provider}, skipping provider-specific validation`);
         }
 
-        this.validatePrices(data);
-
         this.validateSummary(data);
 
         const result = {
@@ -89,6 +90,37 @@ class DataValidator {
     }
 
     /**
+     * Detect extraction mode (ToC-based vs Simple)
+     * @param {Object} data - Data to analyze
+     * @returns {Object} Mode detection result with isTocMode and extractionMethod
+     */
+    detectExtractionMode(data) {
+        // Check extractionMethod in multiple possible locations
+        const extractionMethod = data.data?.extractionInfo?.extractionMethod 
+            || data.data?.extractionInfo?.method
+            || data.extractionInfo?.extractionMethod
+            || data.extractionInfo?.method
+            || data.summary?.extractionMethod
+            || null;
+        
+        const isTocMode = extractionMethod === 'toc-guided-header';
+        const hasDataWrapper = data.data && data.data.sections;
+        const hasMultipleSections = hasDataWrapper 
+            && Object.keys(data.data.sections).length > 1 
+            && !data.data.sections.fullContent;
+        
+        // Determine mode: ToC if explicitly marked OR has multiple sections (not just fullContent)
+        const shouldUseTocMode = isTocMode || (hasDataWrapper && hasMultipleSections);
+        
+        return {
+            isTocMode: shouldUseTocMode,
+            extractionMethod,
+            hasDataWrapper,
+            hasMultipleSections
+        };
+    }
+
+    /**
      * Validate basic data structure
      * @param {Object} data - Data to validate
      * @param {string} provider - Provider name
@@ -99,32 +131,166 @@ class DataValidator {
             return;
         }
 
-        // Check required fields
-        const requiredFields = ['cennikName', 'pdfUrl', 'data'];
+        // Check required fields (basic)
+        const requiredFields = ['cennikName', 'pdfUrl'];
         requiredFields.forEach(field => {
             if (!data[field]) {
                 this.validationErrors.push(`Missing required field: ${field}`);
             }
         });
 
-        // Check data structure
-        if (data.data) {
-            if (!data.data.sections) {
-                this.validationErrors.push('Missing data.sections field');
-            }
-            if (!data.data.summary) {
-                this.validationErrors.push('Missing data.summary field');
-            }
+        const modeInfo = this.detectExtractionMode(data);
+        
+        if (modeInfo.isTocMode) {
+            this.validateTocModeStructure(data);
+        } else {
+            this.validateSimpleModeStructure(data);
         }
 
-        // Check metadata
-        if (data.metadata) {
-            if (!data.metadata.totalSections || data.metadata.totalSections < 0) {
-                this.validationWarnings.push('Invalid or missing totalSections in metadata');
+        this.validateLegacyMetadata(data);
+    }
+
+    /**
+     * Validate ToC-based extraction mode structure
+     * @param {Object} data - Data to validate
+     */
+    validateTocModeStructure(data) {
+        if (!data.data || !data.data.sections) {
+            this.validationErrors.push('Missing data.sections field');
+            return;
+        }
+
+        if (!data.data.summary) {
+            this.validationErrors.push('Missing data.summary field');
+        }
+
+        if (!data.data.extractionInfo) {
+            this.validationWarnings.push('Missing data.extractionInfo field');
+        }
+        
+        // Check for root-level duplicates (should not exist in ToC mode)
+        if (data.summary && data.data.summary) {
+            this.validationWarnings.push('Duplicate summary: found both data.summary and root summary (should only be in data)');
+        }
+        if (data.extractionInfo && data.data.extractionInfo) {
+            this.validationWarnings.push('Duplicate extractionInfo: found both data.extractionInfo and root extractionInfo (should only be in data)');
+        }
+    }
+
+    /**
+     * Validate simple extraction mode structure
+     * @param {Object} data - Data to validate
+     */
+    validateSimpleModeStructure(data) {
+        // Note: During scraping, rawText/summary/extractionInfo may still be in data.* format
+        // (crawler will move them to root level), so check both locations to avoid false warnings
+        const hasRawText = data.rawText 
+            || (data.data && data.data.sections && data.data.sections.fullContent);
+        
+        if (!hasRawText) {
+            this.validationErrors.push('Missing rawText field (neither root-level nor data.sections.fullContent found)');
+        }
+        
+        // Check for summary (root or data.summary - both acceptable during scraping)
+        const hasSummary = data.summary || (data.data && data.data.summary);
+        if (!hasSummary) {
+            this.validationWarnings.push('Missing summary field (neither root-level nor data.summary found)');
+        }
+        
+        // Check for extractionInfo (root or data.extractionInfo - both acceptable during scraping)
+        const hasExtractionInfo = data.extractionInfo || (data.data && data.data.extractionInfo);
+        if (!hasExtractionInfo) {
+            this.validationWarnings.push('Missing extractionInfo field (neither root-level nor data.extractionInfo found)');
+        }
+        
+        // Check for unnecessary data wrapper (should not exist in simple mode)
+        // Exception: data.sections.fullContent is OK for simple mode (single PDF extraction)
+        if (data.data && data.data.sections && !data.data.sections.fullContent) {
+            const sectionKeys = Object.keys(data.data.sections);
+            if (sectionKeys.length > 1) {
+                this.validationWarnings.push('Unnecessary data wrapper in simple mode (no ToC sections)');
             }
-            if (!data.metadata.totalCharacters || data.metadata.totalCharacters < 0) {
-                this.validationWarnings.push('Invalid or missing totalCharacters in metadata');
+        }
+    }
+
+    /**
+     * Validate legacy metadata (kept for backward compatibility)
+     * @param {Object} data - Data to validate
+     */
+    validateLegacyMetadata(data) {
+        // Legacy metadata validation - kept for backward compatibility
+        // Note: This is mostly deprecated but kept to catch edge cases
+        if (!data.metadata) return;
+
+        if (data.metadata.totalSections !== undefined && data.metadata.totalSections < 0) {
+            this.validationWarnings.push('Invalid totalSections in metadata');
+        }
+        if (data.metadata.totalCharacters !== undefined && data.metadata.totalCharacters < 0) {
+            this.validationWarnings.push('Invalid totalCharacters in metadata');
+        }
+    }
+
+    /**
+     * Validate expected sections exist
+     * @param {Object} sections - Sections object to check
+     * @param {Array<string>} expectedSections - List of expected section keys
+     * @param {string} providerName - Provider name for error messages
+     */
+    validateExpectedSections(sections, expectedSections, providerName) {
+        if (!sections) return;
+
+        expectedSections.forEach(sectionKey => {
+            if (!sections[sectionKey]) {
+                this.validationWarnings.push(`Missing expected ${providerName} section: ${sectionKey}`);
             }
+        });
+    }
+
+    /**
+     * Validate content sections exist and meet minimum length requirements
+     * @param {Object} sections - Sections object to check
+     * @param {Array<string>} expectedContentTypes - List of expected content section keys
+     * @param {string} providerName - Provider name for error messages
+     * @param {number} minLength - Minimum content length threshold
+     */
+    validateContentSections(sections, expectedContentTypes, providerName, minLength = VALIDATION_CONSTANTS.CONTENT_LENGTH.MIN_SHORT) {
+        if (!sections) return;
+
+        let hasContent = false;
+        expectedContentTypes.forEach(contentType => {
+            const content = sections[contentType];
+            if (content && typeof content === 'string' && content.length > minLength) {
+                hasContent = true;
+            }
+        });
+
+        // Fallback: accept section-based extraction where sections are objects with rawText
+        if (!hasContent) {
+            const richSectionExists = Object.values(sections).some(sec => {
+                return sec 
+                    && typeof sec === 'object' 
+                    && typeof sec.rawText === 'string' 
+                    && sec.rawText.length > VALIDATION_CONSTANTS.CONTENT_LENGTH.MIN_RICH;
+            });
+            
+            if (!richSectionExists) {
+                this.validationWarnings.push(`Missing expected ${providerName} content sections`);
+            }
+        }
+    }
+
+    /**
+     * Validate content length for a specific section
+     * @param {string|undefined} content - Content to validate
+     * @param {string} sectionName - Name of section for error messages
+     * @param {number} minLength - Minimum expected length
+     */
+    validateContentLength(content, sectionName, minLength = VALIDATION_CONSTANTS.CONTENT_LENGTH.MIN_STANDARD) {
+        if (!content) return;
+
+        const contentLength = typeof content === 'string' ? content.length : 0;
+        if (contentLength < minLength) {
+            this.validationWarnings.push(`${sectionName} content seems too short: ${contentLength} characters`);
         }
     }
 
@@ -149,14 +315,7 @@ class DataValidator {
             'payments'
         ];
 
-        expectedSections.forEach(sectionKey => {
-            if (!sections[sectionKey]) {
-                this.validationWarnings.push(`Missing expected O2 section: ${sectionKey}`);
-            }
-        });
-
-        // Validate O2-specific price ranges
-        this.validateO2Prices(sections);
+        this.validateExpectedSections(sections, expectedSections, 'O2');
     }
 
     /**
@@ -176,14 +335,7 @@ class DataValidator {
             'services.roaming'
         ];
 
-        expectedSections.forEach(sectionKey => {
-            if (!sections[sectionKey]) {
-                this.validationWarnings.push(`Missing expected Telekom section: ${sectionKey}`);
-            }
-        });
-
-        // Validate Telekom-specific price ranges
-        this.validateTelekomPrices(sections);
+        this.validateExpectedSections(sections, expectedSections, 'Telekom');
     }
 
     /**
@@ -194,19 +346,12 @@ class DataValidator {
         if (!data.data || !data.data.sections) return;
 
         const sections = data.data.sections;
-        const { loadConfig } = require('./config-loader');
+        const { loadConfig } = require('../core/config-loader');
         const config = loadConfig();
         const funfonSections = config.providers?.funfon?.sections || {};
         const expectedSections = Object.keys(funfonSections);
 
-        expectedSections.forEach(sectionKey => {
-            if (!sections[sectionKey]) {
-                this.validationWarnings.push(`Missing expected Funfon section: ${sectionKey}`);
-            }
-        });
-
-        // Validate basic price ranges (similar to Telekom but generic)
-        this.validateTelekomPrices(sections);
+        this.validateExpectedSections(sections, expectedSections, 'Funfon');
     }
 
     /**
@@ -216,17 +361,20 @@ class DataValidator {
     validateOrangeData(data) {
         if (!data.data || !data.data.sections) return;
 
+        const sections = data.data.sections;
+
         // Orange uses fullContent instead of specific sections
-        if (!data.data.sections.fullContent) {
+        if (!sections.fullContent) {
             this.validationWarnings.push('Missing Orange fullContent section');
-        } else {
-            const contentLength = data.data.sections.fullContent.length;
-            if (contentLength < 100) {
-                this.validationWarnings.push(`Orange content seems too short: ${contentLength} characters`);
-            }
-            if (contentLength > 1000000) {
-                this.validationWarnings.push(`Orange content seems too long: ${contentLength} characters`);
-            }
+            return;
+        }
+
+        const contentLength = sections.fullContent.length;
+        if (contentLength < VALIDATION_CONSTANTS.CONTENT_LENGTH.MIN_STANDARD) {
+            this.validationWarnings.push(`Orange content seems too short: ${contentLength} characters`);
+        }
+        if (contentLength > VALIDATION_CONSTANTS.CONTENT_LENGTH.MAX_CONTENT) {
+            this.validationWarnings.push(`Orange content seems too long: ${contentLength} characters`);
         }
     }
 
@@ -241,40 +389,15 @@ class DataValidator {
         
         // Fourka uses mixed extraction method, check for expected content
         const expectedContentTypes = ['fullContent', 'mobilnych_sluzieb', 'premiovych_cisel'];
-        
-        let hasContent = false;
-        expectedContentTypes.forEach(contentType => {
-            if (sections[contentType] && typeof sections[contentType] === 'string' && sections[contentType].length > 50) {
-                hasContent = true;
-            }
-        });
+        this.validateContentSections(sections, expectedContentTypes, 'Fourka');
 
-        // Fallback: accept section-based extraction where sections are objects with rawText
-        if (!hasContent) {
-            const richSectionExists = Object.values(sections).some(sec => sec && typeof sec === 'object' && typeof sec.rawText === 'string' && sec.rawText.length > 500);
-            if (!richSectionExists) {
-                this.validationWarnings.push('Missing expected Fourka content sections');
-            }
-        }
-
-        // Check for mobile services content
-        if (sections.mobilnych_sluzieb) {
-            const contentLength = sections.mobilnych_sluzieb.length;
-            if (contentLength < 100) {
-                this.validationWarnings.push(`Fourka mobile services content seems too short: ${contentLength} characters`);
-            }
-        }
-
-        // Check for premium numbers content
-        if (sections.premiovych_cisel) {
-            const contentLength = sections.premiovych_cisel.length;
-            if (contentLength < 50) {
-                this.validationWarnings.push(`Fourka premium numbers content seems too short: ${contentLength} characters`);
-            }
-        }
-
-        // Validate basic price ranges for Fourka
-        this.validatePriceRange(sections, 'Fourka general', 0, 200);
+        // Check for specific section content lengths
+        this.validateContentLength(sections.mobilnych_sluzieb, 'Fourka mobile services');
+        this.validateContentLength(
+            sections.premiovych_cisel, 
+            'Fourka premium numbers', 
+            VALIDATION_CONSTANTS.CONTENT_LENGTH.MIN_SHORT
+        );
     }
 
     /**
@@ -288,36 +411,11 @@ class DataValidator {
         
         // Tesco uses euro-symbol-based extraction, check for expected content
         const expectedContentTypes = ['fullContent', 'topka', 'trio'];
-        
-        let hasContent = false;
-        expectedContentTypes.forEach(contentType => {
-            if (sections[contentType] && sections[contentType].length > 50) {
-                hasContent = true;
-            }
-        });
+        this.validateContentSections(sections, expectedContentTypes, 'Tesco');
 
-        if (!hasContent) {
-            this.validationWarnings.push('Missing expected Tesco content sections');
-        }
-
-        // Check for Topka content
-        if (sections.topka) {
-            const contentLength = sections.topka.length;
-            if (contentLength < 100) {
-                this.validationWarnings.push(`Tesco Topka content seems too short: ${contentLength} characters`);
-            }
-        }
-
-        // Check for Trio content
-        if (sections.trio) {
-            const contentLength = sections.trio.length;
-            if (contentLength < 100) {
-                this.validationWarnings.push(`Tesco Trio content seems too short: ${contentLength} characters`);
-            }
-        }
-
-        // Validate price ranges for Tesco (typically lower prices)
-        this.validatePriceRange(sections, 'Tesco general', 0, 50);
+        // Check for specific section content lengths
+        this.validateContentLength(sections.topka, 'Tesco Topka');
+        this.validateContentLength(sections.trio, 'Tesco Trio');
     }
 
     /**
@@ -331,28 +429,10 @@ class DataValidator {
         
         // Okayfon uses euro-symbol-based extraction, check for expected content
         const expectedContentTypes = ['fullContent', 'datovych_balikov'];
-        
-        let hasContent = false;
-        expectedContentTypes.forEach(contentType => {
-            if (sections[contentType] && sections[contentType].length > 50) {
-                hasContent = true;
-            }
-        });
-
-        if (!hasContent) {
-            this.validationWarnings.push('Missing expected Okayfon content sections');
-        }
+        this.validateContentSections(sections, expectedContentTypes, 'Okayfon');
 
         // Check for data packages content
-        if (sections.datovych_balikov) {
-            const contentLength = sections.datovych_balikov.length;
-            if (contentLength < 100) {
-                this.validationWarnings.push(`Okayfon data packages content seems too short: ${contentLength} characters`);
-            }
-        }
-
-        // Validate price ranges for Okayfon (data packages)
-        this.validatePriceRange(sections, 'Okayfon general', 0, 100);
+        this.validateContentLength(sections.datovych_balikov, 'Okayfon data packages');
     }
 
     /**
@@ -372,81 +452,7 @@ class DataValidator {
             'sluzby_zabavy'
         ];
 
-        expectedSections.forEach(sectionKey => {
-            if (!sections[sectionKey]) {
-                this.validationWarnings.push(`Missing expected RAD section: ${sectionKey}`);
-            }
-        });
-
-        // Validate RAD-specific price ranges
-        this.validatePriceRange(sections, 'RAD general', 0, 150);
-    }
-
-    /**
-     * Validate O2-specific prices
-     * @param {Object} sections - O2 sections to validate
-     */
-    validateO2Prices(sections) {
-        // Validate π Voľnosť prices
-        if (sections['programs.volnost']) {
-            this.validatePriceRange(sections['programs.volnost'], 'O2 π Voľnosť', 0, 100);
-        }
-
-        // Validate π Paušál prices
-        if (sections['programs.pausal']) {
-            this.validatePriceRange(sections['programs.pausal'], 'O2 π Paušál', 0, 200);
-        }
-
-        // Validate internet services
-        if (sections['internetServices.vzduchom']) {
-            this.validatePriceRange(sections['internetServices.vzduchom'], 'O2 Internet vzduchom', 0, 100);
-        }
-    }
-
-    /**
-     * Validate Telekom-specific prices
-     * @param {Object} sections - Telekom sections to validate
-     */
-    validateTelekomPrices(sections) {
-        // Validate Telekom plans
-        if (sections['plans.telekom']) {
-            this.validatePriceRange(sections['plans.telekom'], 'Telekom plans', 0, 300);
-        }
-
-        // Validate mobile internet
-        if (sections['internet.mobilny']) {
-            this.validatePriceRange(sections['internet.mobilny'], 'Telekom mobile internet', 0, 150);
-        }
-    }
-
-    /**
-     * Validate price ranges in a section
-     * @param {Object} section - Section to validate
-     * @param {string} sectionName - Name of section for error messages
-     * @param {number} minPrice - Minimum expected price
-     * @param {number} maxPrice - Maximum expected price
-     */
-    validatePriceRange(section, sectionName, minPrice, maxPrice) {
-        // Price sanity checks disabled to allow rawText variability across providers
-        return;
-    }
-
-    /**
-     * Validate prices across all data
-     * @param {Object} data - Data to validate
-     */
-    validatePrices(data) {
-        if (!data.data || !data.data.sections) return;
-
-        const sections = data.data.sections;
-        
-        // Look for common price patterns and validate them
-        Object.keys(sections).forEach(sectionKey => {
-            const section = sections[sectionKey];
-            if (section && typeof section === 'object') {
-                this.validatePriceRange(section, sectionKey, 0, 1000); // General price validation
-            }
-        });
+        this.validateExpectedSections(sections, expectedSections, 'RAD');
     }
 
     /**
@@ -457,13 +463,14 @@ class DataValidator {
         if (!data.data || !data.data.summary) return;
 
         const summary = data.data.summary;
+        const { CONTENT_LENGTH, SUMMARY } = VALIDATION_CONSTANTS;
 
         // Validate summary fields
         if (summary.totalSections !== undefined) {
             if (summary.totalSections < 0) {
                 this.validationErrors.push('totalSections cannot be negative');
             }
-            if (summary.totalSections > 100) {
+            if (summary.totalSections > SUMMARY.MAX_SECTIONS) {
                 this.validationWarnings.push(`totalSections seems high: ${summary.totalSections}`);
             }
         }
@@ -472,10 +479,10 @@ class DataValidator {
             if (summary.totalCharacters < 0) {
                 this.validationErrors.push('totalCharacters cannot be negative');
             }
-            if (summary.totalCharacters < 100) {
+            if (summary.totalCharacters < SUMMARY.MIN_CHARS_WARNING) {
                 this.validationWarnings.push(`totalCharacters seems low: ${summary.totalCharacters}`);
             }
-            if (summary.totalCharacters > 10000000) {
+            if (summary.totalCharacters > CONTENT_LENGTH.MAX_TOTAL_CHARS) {
                 this.validationWarnings.push(`totalCharacters seems high: ${summary.totalCharacters}`);
             }
         }
@@ -509,6 +516,7 @@ class DataValidator {
      */
     detectSilentFailures(data, provider) {
         const failures = [];
+        const { SILENT_FAILURE } = VALIDATION_CONSTANTS;
 
         // Check if data is missing critical fields
         if (!data || !data.data) {
@@ -531,7 +539,7 @@ class DataValidator {
 
         // Check if extracted content is suspiciously small
         const totalChars = data.data.summary?.totalCharacters || 0;
-        if (totalChars < 100) {
+        if (totalChars < SILENT_FAILURE.MIN_CONTENT_CHARS) {
             failures.push({
                 type: 'INSUFFICIENT_CONTENT',
                 message: `Extracted content is too small (${totalChars} characters) - possible extraction failure`,

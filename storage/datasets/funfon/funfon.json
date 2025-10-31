@@ -1,7 +1,7 @@
 {
 	"provider": "Funfon Slovakia",
-	"crawlDate": "2025-10-30T14:33:21.622Z",
-	"lastChecked": "2025-10-30T14:33:21.622Z",
+	"crawlDate": "2025-10-31T12:55:41.209Z",
+	"lastChecked": "2025-10-31T13:06:29.704Z",
 	"totalPdfs": 1,
 	"successfulPdfs": 1,
 	"failedPdfs": 0,
@@ -63,21 +63,11 @@
 					"totalCharacters": 87245
 				},
 				"extractionInfo": {
-					"method": "toc-guided-header",
-					"tocSections": 19
+					"tocSections": 19,
+					"extractionMethod": "toc-guided-header"
 				}
 			},
-			"scrapedAt": "2025-10-30T14:33:21.621Z",
-			"summary": {
-				"totalSections": 14,
-				"successfulExtractions": 14,
-				"failedExtractions": 0,
-				"totalCharacters": 87245
-			},
-			"extractionInfo": {
-				"method": "toc-guided-header",
-				"tocSections": 19
-			},
+			"scrapedAt": "2025-10-31T12:55:41.208Z",
 			"validation": {
 				"isValid": true,
 				"errorCount": 0,

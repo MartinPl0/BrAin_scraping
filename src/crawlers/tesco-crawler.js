@@ -1,6 +1,6 @@
 const BaseCrawler = require('./base-crawler');
 const cheerio = require('cheerio');
-const TescoJsonMerger = require('../utils/mergers/tesco-json-merger');
+const TescoJsonMerger = require('../utils/data/mergers/tesco-json-merger');
 
 /**
  * Tesco Mobile Slovakia specific crawler

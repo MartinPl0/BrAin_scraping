@@ -247,6 +247,16 @@ class FunfonCrawler extends BaseCrawler {
                 // Use rawText from scraper if available, otherwise use consolidated
                 const finalRawText = extractedData.rawText || consolidatedRawText.trim();
                 
+                // Normalize extractionInfo keys
+                const normalizedExtractionInfo = (() => {
+                    const info = extractedData.extractionInfo ? { ...extractedData.extractionInfo } : {};
+                    if (info.method && !info.extractionMethod) {
+                        info.extractionMethod = info.method;
+                        delete info.method;
+                    }
+                    return info;
+                })();
+
                 const pdfData = {
                     cennikName: extractedData.cennikName || `Funfon Cenník služieb`,
                     pdfUrl: primaryPdf.url,
@@ -255,11 +265,9 @@ class FunfonCrawler extends BaseCrawler {
                     data: {
                         sections: extractedData.data?.sections || {},
                         summary: extractedData.summary,
-                        extractionInfo: extractedData.extractionInfo
+                        extractionInfo: normalizedExtractionInfo
                     },
                     scrapedAt: new Date().toISOString(),
-                    summary: extractedData.summary,
-                    extractionInfo: extractedData.extractionInfo,
                     validation: extractedData.metadata?.validation
                 };
                 

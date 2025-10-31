@@ -8,7 +8,8 @@ const path = require('path');
  */
 class PdfDownloader {
     constructor() {
-        this.tempDir = path.join(__dirname, '..', '..', 'temp');
+        const { getTempDir } = require('../core/paths');
+        this.tempDir = getTempDir();
         this.ensureTempDir();
     }
 

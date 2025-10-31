@@ -1,7 +1,7 @@
 {
 	"provider": "Telekom Slovakia",
-	"crawlDate": "2025-10-30T14:23:47.166Z",
-	"lastChecked": "2025-10-30T14:33:21.756Z",
+	"crawlDate": "2025-10-31T12:55:33.939Z",
+	"lastChecked": "2025-10-31T13:06:29.704Z",
 	"totalPdfs": 1,
 	"successfulPdfs": 1,
 	"failedPdfs": 0,
@@ -39,15 +39,9 @@
 					"totalCharacters": 36484
 				},
 				"extractionInfo": {
-					"method": "toc-guided-header",
-					"tocSections": 49
+					"tocSections": 49,
+					"extractionMethod": "toc-guided-header"
 				}
-			},
-			"summary": {
-				"totalSections": 6,
-				"successfulExtractions": 6,
-				"failedExtractions": 0,
-				"totalCharacters": 36484
 			},
 			"validation": {
 				"isValid": true,
@@ -55,10 +49,6 @@
 				"warningCount": 0,
 				"errors": [],
 				"warnings": []
-			},
-			"extractionInfo": {
-				"method": "toc-guided-header",
-				"tocSections": 49
 			}
 		}
 	],

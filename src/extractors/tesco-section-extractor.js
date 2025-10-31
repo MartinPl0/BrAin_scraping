@@ -1,5 +1,5 @@
-const PageExtractor = require('../utils/page-extractor');
-const { loadConfig } = require('../utils/config-loader');
+const PageExtractor = require('../utils/web/page-extractor');
+const { loadConfig } = require('../utils/core/config-loader');
 
 /**
  * Tesco Mobile Section Extractor for Tesco Mobile Slovakia

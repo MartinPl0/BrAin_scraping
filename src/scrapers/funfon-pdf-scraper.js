@@ -1,7 +1,7 @@
-const PdfDownloader = require('../utils/pdf-downloader');
+const PdfDownloader = require('../utils/pdf/pdf-downloader');
 const FunfonSectionExtractor = require('../extractors/funfon-section-extractor');
 const DataStorage = require('../storage/data-storage');
-const DataValidator = require('../utils/data-validator');
+const DataValidator = require('../utils/data/data-validator');
 
 /**
  * Funfon PDF Scraper for Funfon Slovakia price lists
@@ -28,7 +28,7 @@ class FunfonPdfScraper {
         let pdfFilePath = null; // Declare at function scope
         try {
             if (!cennikName) {
-                const { loadConfig } = require('../utils/config-loader');
+                const { loadConfig } = require('../utils/core/config-loader');
                 const config = loadConfig();
                 cennikName = config.providers?.funfon?.displayName || 'Funfon Cenník služieb';
             }

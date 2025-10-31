@@ -1,7 +1,7 @@
-const RadTocParser = require('../utils/parsers/rad-toc-parser');
-const PageExtractor = require('../utils/page-extractor');
-const HeaderBasedExtractor = require('../utils/extractors/o2-header-extractor');
-const { loadConfig } = require('../utils/config-loader');
+const RadTocParser = require('../utils/pdf/parsers/rad-toc-parser');
+const PageExtractor = require('../utils/web/page-extractor');
+const HeaderBasedExtractor = require('../utils/pdf/extractors/o2-header-extractor');
+const { loadConfig } = require('../utils/core/config-loader');
 
 /**
  * RAD Section Text Extractor

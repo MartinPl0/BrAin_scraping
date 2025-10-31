@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
+const { getDefaultConfigPath } = require('./paths');
 
 /**
  * Load scraper configuration from JSON file and environment variables
@@ -8,8 +9,7 @@ require('dotenv').config();
  * @returns {Object} Configuration object
  */
 function loadConfig(configPath = null) {
-    const defaultPath = path.join(__dirname, '..', 'config', 'scraper-config.json');
-    const configFile = configPath || defaultPath;
+    const configFile = configPath || getDefaultConfigPath();
     
     try {
         const configData = fs.readFileSync(configFile, 'utf8');

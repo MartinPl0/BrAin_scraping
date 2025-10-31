@@ -1,5 +1,5 @@
-const PageExtractor = require('../utils/page-extractor');
-const { loadConfig } = require('../utils/config-loader');
+const PageExtractor = require('../utils/web/page-extractor');
+const { loadConfig } = require('../utils/core/config-loader');
 
 /**
  * Orange Section Extractor for Orange Slovakia

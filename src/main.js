@@ -1,10 +1,10 @@
-const { loadConfig } = require('./utils/config-loader');
+const { loadConfig } = require('./utils/core/config-loader');
 const DataStorage = require('./storage/data-storage');
 const O2PdfScraper = require('./scrapers/o2-pdf-scraper');
 const TelekomPdfScraper = require('./scrapers/telekom-pdf-scraper');
 const OrangePdfScraper = require('./scrapers/orange-pdf-scraper');
 const RadPdfScraper = require('./scrapers/rad-pdf-scraper');
-const ErrorMonitor = require('./utils/error-monitor');
+const ErrorMonitor = require('./utils/core/error-monitor');
 const EmailNotifier = require('./notifications/email-notifier');
 
 /**

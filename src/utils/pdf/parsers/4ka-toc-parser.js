@@ -1,4 +1,4 @@
-const { loadConfig } = require('./config-loader');
+const { loadConfig } = require('../../core/config-loader');
 
 /**
  * Table of Contents Parser for 4ka PDFs

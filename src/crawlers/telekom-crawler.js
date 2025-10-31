@@ -120,8 +120,10 @@ class TelekomCrawler extends BaseCrawler {
             if (options.reuseCrawlResult && options.reuseCrawlResult.allPdfLinks) {
                 console.log(`🔄 Reusing crawl results to avoid double crawling...`);
                 pdfLinks = options.reuseCrawlResult.allPdfLinks || [];
+                // Preserve publishDate from reused metadata if available
                 metadata = {
-                    lastChecked: options.reuseCrawlResult.lastChecked
+                    publishDate: options.reuseCrawlResult.metadata?.publishDate || null,
+                    lastChecked: options.reuseCrawlResult.lastChecked || new Date().toISOString()
                 };
                 console.log(`📄 Reusing ${pdfLinks.length} PDF links from previous crawl`);
             } else {
@@ -164,6 +166,18 @@ class TelekomCrawler extends BaseCrawler {
                     });
                 }
                 
+                // Normalize extractionInfo for ToC and strip method from summary
+                const normalizedExtractionInfo = (() => {
+                    const info = extractedData.extractionInfo ? { ...extractedData.extractionInfo } : {};
+                    if (info.method && !info.extractionMethod) {
+                        info.extractionMethod = info.method;
+                        delete info.method;
+                    }
+                    return info;
+                })();
+                const sanitizedSummary = extractedData.summary ? { ...extractedData.summary } : undefined;
+                if (sanitizedSummary && 'extractionMethod' in sanitizedSummary) delete sanitizedSummary.extractionMethod;
+
                 const pdfData = {
                     cennikName: extractedData.cennikName || `Telekom Cenník služieb`,
                     pdfUrl: primaryPdf.url,
@@ -171,18 +185,16 @@ class TelekomCrawler extends BaseCrawler {
                     rawText: consolidatedRawText.trim(),
                     data: {
                         sections: extractedData.data?.sections || {},
-                        summary: extractedData.summary,
-                        extractionInfo: extractedData.extractionInfo
+                        summary: sanitizedSummary,
+                        extractionInfo: normalizedExtractionInfo
                     },
-                    summary: extractedData.summary,
-                    validation: extractedData.metadata?.validation,
-                    extractionInfo: extractedData.extractionInfo
+                    validation: extractedData.metadata?.validation
                 };
                 
                 console.log(`📊 PDF Data Structure for Telekom Cenník služieb:`);
                 console.log(`   - Has rawText: ${!!pdfData.rawText}`);
-                console.log(`   - Has summary: ${!!pdfData.summary}`);
-                console.log(`   - Has extractionInfo: ${!!pdfData.extractionInfo}`);
+                console.log(`   - Has data.summary: ${!!pdfData.data?.summary}`);
+                console.log(`   - Has data.extractionInfo: ${!!pdfData.data?.extractionInfo}`);
                 console.log(`   - Raw text length: ${pdfData.rawText.length} characters`);
                 
                 allPdfData.push(pdfData);
